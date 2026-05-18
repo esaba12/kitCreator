@@ -3,6 +3,7 @@ from __future__ import annotations
 from pathlib import Path
 
 from kitforge.extract.slicer import OneShot
+from kitforge.extract.pitched_slicer import PitchedShot
 
 
 # MIDI note assignments per drum class (GM-ish layout)
@@ -60,4 +61,21 @@ def write_drum_sfz(one_shots: list[OneShot], sfz_path: Path) -> None:
                     region += f" seq_position={shot.rr_index + 1} seq_length={rr_count}"
                 lines.append(region)
 
+    sfz_path.write_text("\n".join(lines) + "\n")
+
+
+def write_pitched_sfz(shots: list[PitchedShot], sfz_path: Path) -> None:
+    """Emit a SFZ pitched instrument (bass, etc.) — one zone per note."""
+    lines = [
+        "// kitforge pitched kit — SFZ format\n"
+        "<global>\nampeg_release=0.3\n",
+        "<group>",
+    ]
+    for shot in sorted(shots, key=lambda s: s.lokey):
+        rel_path = shot.path.relative_to(sfz_path.parent)
+        lines.append(
+            f"<region> sample={rel_path}"
+            f" lokey={shot.lokey} hikey={shot.hikey}"
+            f" pitch_keycenter={shot.midi_note}"
+        )
     sfz_path.write_text("\n".join(lines) + "\n")

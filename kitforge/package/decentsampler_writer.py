@@ -4,6 +4,7 @@ from pathlib import Path
 from xml.etree.ElementTree import Element, SubElement, indent, tostring
 
 from kitforge.extract.slicer import OneShot
+from kitforge.extract.pitched_slicer import PitchedShot
 
 
 _DRUM_MIDI = {
@@ -63,6 +64,34 @@ def write_drum_dspreset(one_shots: list[OneShot], dspreset_path: Path) -> None:
                     "volume": "1.0",
                     "seqPosition": str(shot.rr_index + 1),
                 })
+
+    indent(root, space="  ")
+    xml_bytes = tostring(root, encoding="unicode", xml_declaration=False)
+    dspreset_path.write_text('<?xml version="1.0" encoding="UTF-8"?>\n' + xml_bytes + "\n")
+
+
+def write_pitched_dspreset(shots: list[PitchedShot], dspreset_path: Path) -> None:
+    """Emit a DecentSampler .dspreset for a pitched instrument."""
+    root = Element("DecentSampler", minVersion="1.0.0")
+
+    ui = SubElement(root, "ui", width="812", height="375", bgMode="blank")
+    SubElement(ui, "label", x="10", y="10", width="400", height="30",
+               text="kitforge bass kit", textSize="20", textColor="FFFFFFFF")
+
+    groups_el = SubElement(root, "groups")
+    group = SubElement(groups_el, "group")
+
+    for shot in sorted(shots, key=lambda s: s.lokey):
+        rel_path = str(shot.path.relative_to(dspreset_path.parent))
+        SubElement(group, "sample", **{
+            "path": rel_path,
+            "loNote": str(shot.lokey),
+            "hiNote": str(shot.hikey),
+            "rootNote": str(shot.midi_note),
+            "loVel": "0",
+            "hiVel": "127",
+            "volume": "1.0",
+        })
 
     indent(root, space="  ")
     xml_bytes = tostring(root, encoding="unicode", xml_declaration=False)

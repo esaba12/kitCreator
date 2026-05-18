@@ -14,13 +14,15 @@ def track_f0(
     model: str = "full",
     batch_size: int = 2048,
 ) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
-    """Return (times, f0, confidence) arrays for a monophonic audio signal."""
+    """Return (times_s, f0_hz, periodicity) arrays for a monophonic audio signal."""
     import torchcrepe
 
-    device = "mps" if torch.backends.mps.is_available() else "cpu"
+    # torchcrepe MPS support is inconsistent; CPU is safe and fast enough for bass stems
+    device = "cpu"
     audio_tensor = torch.from_numpy(audio).float().unsqueeze(0)
 
-    times, f0, confidence, _ = torchcrepe.predict(
+    # predict returns (frequencies, periodicity) with return_periodicity=True
+    f0_tensor, periodicity_tensor = torchcrepe.predict(
         audio_tensor,
         sample_rate,
         hop_length=hop_length,
@@ -31,4 +33,9 @@ def track_f0(
         device=device,
         return_periodicity=True,
     )
-    return times.numpy(), f0.numpy(), confidence.numpy()
+
+    n_frames = f0_tensor.shape[-1]
+    times = np.arange(n_frames) * hop_length / sample_rate
+    f0 = f0_tensor.squeeze(0).numpy()
+    periodicity = periodicity_tensor.squeeze(0).numpy()
+    return times, f0, periodicity

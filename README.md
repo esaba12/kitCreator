@@ -128,7 +128,7 @@ kitforge build --song song.wav --instrument piano --range C2-C7 --out ~/Desktop/
 kitforge build --song song.wav --instrument "lead synth" --out ~/Desktop/synth_kit
 
 # Flags
---quality fast|default|high    # fast = htdemucs, default/high = htdemucs_ft
+--quality fast|default|high    # fast = htdemucs; default = htdemucs_ft; high = htdemucs_ft + Banquet (see below)
 --debug                        # extra diagnostics and intermediate WAV locations
 --config kitforge.toml         # load settings from a TOML file
 ```
@@ -193,7 +193,7 @@ demucs_runner.py       htdemucs_ft → drums.wav, bass.wav, vocals.wav, other.wa
 | `separation/demucs_runner.py` | ✅ Working | htdemucs_ft / htdemucs_6s separation, MPS-accelerated |
 | `separation/larsnet_runner.py` | ✅ Working | LarsNet 5-class drum sub-stem separation |
 | `separation/roformer_runner.py` | 🔲 Stub | BS-RoFormer high-quality mode |
-| `separation/query_separator.py` | 🔲 Stub | Banquet CLAP-query sub-instrument router |
+| `separation/query_separator.py` | ✅ Working | Banquet query-based separation (optional, `--quality high`) |
 | `transcribe/crepe_mono.py` | ✅ Working | torchcrepe monophonic f0 tracking for bass/lead |
 | `transcribe/basic_pitch_runner.py` | ✅ Working | Basic Pitch polyphonic transcription for guitar/piano/synth |
 | `transcribe/mt3_runner.py` | 🔲 Stub | Multi-instrument joint transcription (deferred) |
@@ -215,9 +215,21 @@ demucs_runner.py       htdemucs_ft → drums.wav, bass.wav, vocals.wav, other.wa
 
 ## Roadmap
 
-### Next: Query-based sub-instrument separation
+### Optional: Banquet high-quality separation
 
-Guitar / piano / synth currently use htdemucs stems directly. For better isolation (especially piano — htdemucs_6s piano quality is flagged as poor in Meta's README), the next step is `query_separator.py`: a Banquet CLAP-query-conditioned separator that routes the "other" stem by instrument query (e.g. "electric guitar").
+For better guitar/piano/synth isolation (htdemucs_6s piano quality is flagged as poor in Meta's own README), enable Banquet:
+
+```bash
+# One-time setup: ~30 MB repo clone + ~645 MB model weights
+kitforge setup-banquet
+
+# Then use --quality high to activate it
+kitforge build --song song.wav --instrument piano --range C2-C7 --out ~/Desktop/piano_kit --quality high
+```
+
+**Runtime:** CPU ~35 min/song. CUDA GPU ~5 min. gated behind `--quality high` only; `default` and `fast` are unchanged.
+
+Banquet is a query-based separator — it takes the rough htdemucs stem as a 10-second reference and uses it to extract that instrument directly from the full mix. On piano and guitar specifically, Banquet outperforms htdemucs_6s (per the original paper).
 
 ### Phase 2 — DAC-token language model
 

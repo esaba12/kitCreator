@@ -33,6 +33,11 @@ dependencies = [
     "scikit-learn>=1.4.0",
     "deepfilternet>=0.5.6",
 
+    # Banquet query separation (optional enhanced quality for guitar/piano/synth)
+    "pytorch-lightning>=2.0.0",
+    "hear21passt>=0.0.26",
+    "torchmetrics>=1.0.0",
+
     # Packaging / CLI
     "typer>=0.12.0",
     "pydantic-settings>=2.2.0",

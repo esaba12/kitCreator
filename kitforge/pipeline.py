@@ -29,6 +29,7 @@ _DEFAULT_RANGES: dict[str, tuple[int, int]] = {
 _SLICER_VERSION = "1.1"
 _PITCHER_VERSION = "1.0"
 _BASIC_PITCH_VERSION = "1.0"
+_BANQUET_VERSION = "1.0"
 
 
 @dataclass
@@ -201,6 +202,21 @@ def build_kit(
 
         lo_midi, hi_midi = _parse_note_range(note_range, default=_DEFAULT_RANGES[family])
 
+        # Optional Banquet refinement — only when --quality high
+        # (CPU inference ~35 min/song; CUDA ~5 min)
+        from kitforge.separation import query_separator
+        if config.separator_quality == "high" and query_separator.is_available():
+            stem_wav = _banquet_refine(
+                song_path, stem_wav, instrument_lower, stems_dir,
+                stage_cache, config.debug,
+            )
+            if config.debug:
+                console.print(f"  [dim]banquet: using refined stem {stem_wav.name}[/dim]")
+        elif config.separator_quality == "high" and not query_separator.is_available():
+            console.print(
+                "  [dim](tip: run 'kitforge setup-banquet' for even better quality at --quality high)[/dim]"
+            )
+
         bp_params = {"lo": lo_midi, "hi": hi_midi, "out": str(sample_dir), "stem": str(stem_wav)}
         ck = cache_key(stem_wav, f"basic_pitch_{family}", _BASIC_PITCH_VERSION, bp_params)
 
@@ -252,6 +268,57 @@ def build_kit(
 
 
 # ── helpers ──────────────────────────────────────────────────────────────────
+
+def _banquet_refine(
+    song_path: Path,
+    rough_stem: Path,
+    instrument: str,
+    stems_dir: Path,
+    stage_cache,
+    debug: bool,
+) -> Path:
+    """
+    Run Banquet query separation on the original mix, using the htdemucs stem as query.
+    Returns the refined stem path (cached alongside demucs stems).
+    """
+    from kitforge.separation import query_separator
+    from kitforge.cache import cache_key
+
+    # Cache key: song content + instrument + banquet version
+    ck = cache_key(song_path, f"banquet_{instrument}", _BANQUET_VERSION, {})
+    refined_path = stems_dir / f"banquet_{instrument.replace(' ', '_')}.wav"
+
+    if refined_path.exists():
+        return refined_path
+
+    # Extract 10-second query from the first 10s of the rough stem
+    import soundfile as sf
+    import numpy as np
+
+    data, sr = sf.read(str(rough_stem), always_2d=True)
+    query_samples = min(len(data), sr * 10)
+    query_clip = data[:query_samples]
+    query_path = stems_dir / f"_query_{instrument.replace(' ', '_')}.wav"
+    sf.write(str(query_path), query_clip, sr)
+
+    console.print(f"  Running Banquet separation for {instrument}...")
+    try:
+        query_separator.separate(
+            audio_path=song_path,
+            query_wav_path=query_path,
+            out_path=refined_path,
+            instrument=instrument,
+        )
+    except ValueError as e:
+        # Audio too short for Banquet — fall back to htdemucs stem
+        if debug:
+            console.print(f"  [dim]Banquet skipped: {e}[/dim]")
+        return rough_stem
+    finally:
+        query_path.unlink(missing_ok=True)
+
+    return refined_path
+
 
 def _cached_files_exist(shots: list | None) -> bool:
     """Verify that all sample files referenced by a cached shot list still exist."""

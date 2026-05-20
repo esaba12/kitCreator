@@ -112,5 +112,17 @@ def build(
         console.print(f"\n[yellow]Warning:[/yellow] {warning}")
 
 
+@app.command(name="setup-banquet")
+def setup_banquet(
+    no_weights: bool = typer.Option(False, "--no-weights", help="Clone repo and install deps only; skip the 646 MB weight download"),
+) -> None:
+    """Set up Banquet for higher-quality guitar/piano/synth separation."""
+    from kitforge.separation import query_separator
+
+    console.print("[bold blue]Setting up Banquet query separation...[/bold blue]")
+    query_separator.setup(download_weights=not no_weights)
+    console.print("[bold green]Banquet ready.[/bold green] Re-run 'kitforge build' to use improved separation.")
+
+
 if __name__ == "__main__":
     app()

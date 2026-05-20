@@ -7,7 +7,23 @@ All notable changes to kitCreator. Entries are grouped by feature area, not by i
 ## [Unreleased]
 
 ### Planned
-- `query_separator.py` — Banquet CLAP-query separation for guitar/piano/synth from "other" stem
+- CLAP-embedding clustering for round-robin sample selection
+- DeepFilterNet post-separation denoising
+
+---
+
+## 2026-05-20 — Banquet Query Separation (--quality high)
+
+### Added
+- `separation/query_separator.py` — Banquet (kwatcharasupat/query-bandit) integration for higher-quality guitar/piano/synth isolation
+- `kitforge setup-banquet` CLI command — clones repo, installs deps (pytorch-lightning, hear21passt, torchmetrics), downloads 645 MB weights from Zenodo
+- `--quality high` now uses Banquet separation when available: runs on original mix with htdemucs stem as 10-second query, then passes refined stem to Basic Pitch
+- Graceful fallback: if audio < 28s or Banquet not set up, falls back to htdemucs stem silently
+
+### Notes
+- CPU inference ~35 min/song (CUDA ~5 min); gated behind `--quality high` only — default/fast remain unchanged
+- MPS not supported: PaSST position embeddings are float64, which MPS rejects
+- `is_available()` validates weights file > 500 MB to reject truncated downloads
 
 ---
 

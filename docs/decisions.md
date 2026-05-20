@@ -60,6 +60,25 @@ Original default was E1 (MIDI 28). Real-song testing on four tracks showed the m
 
 ---
 
+## Banquet Query Separation
+
+**Banquet runs CPU-only — not MPS**
+`PasstFiLMConditionedBandit` contains float64 buffers (PaSST position embeddings) that MPS doesn't support. CUDA works fine. On CPU with batch_size=4, inference on a 3-minute song takes ~35 minutes; on a GPU it's ~5 minutes. This is why Banquet is gated behind `--quality high`, not enabled by default.
+
+**Banquet is a research repo, not a PyPI package**
+Cloned to `~/.cache/kitforge/banquet/repo/` at setup time. The repo directory is added to `sys.path` at runtime. `CONFIG_ROOT` env var must point to `repo/config/` for omegaconf to resolve `${oc.env:CONFIG_ROOT}` references in the YAML configs.
+
+**Don't import from train.py**
+`train.py` imports `pytorch_lightning.profilers.AdvancedProfiler` which was removed in pl 2.0. Our `_infer()` function imports only from `core.*`, bypassing `train.py` entirely.
+
+**Audio must be ≥28 seconds for chunked_inference**
+Chunk size=6s, hop=0.5s → overlap=5.5s. The F.pad call requires `2*overlap < n_samples`. Minimum safe input = 28s at 44.1kHz. `_infer` checks duration upfront via `librosa.get_duration()` and raises `ValueError` for short files; `_banquet_refine` catches this and falls back to the htdemucs stem.
+
+**Weights are 645 MB from Zenodo — validate size in is_available()**
+A truncated download (partial file) would fail silently at `load_from_checkpoint`. `is_available()` checks `st_size > 500 MB` to reject incomplete files.
+
+---
+
 ## Infrastructure
 
 **`torchcrepe` instead of `crepe` from PyPI**

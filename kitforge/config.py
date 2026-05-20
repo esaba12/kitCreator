@@ -8,7 +8,9 @@ from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
 class KitForgeConfig(BaseSettings):
-    model_config = SettingsConfigDict(env_prefix="KITFORGE_", toml_file="kitforge.toml")
+    # toml_file removed from model_config — loaded manually in cli.py to avoid
+    # the "config key will be ignored" warning when no TOML source is registered
+    model_config = SettingsConfigDict(env_prefix="KITFORGE_")
 
     # Separation
     separator: Literal["htdemucs_ft", "htdemucs_6s", "bs_roformer"] = "htdemucs_ft"
@@ -35,3 +37,20 @@ class KitForgeConfig(BaseSettings):
     def ensure_dirs(self) -> None:
         self.cache_dir.mkdir(parents=True, exist_ok=True)
         self.models_dir.mkdir(parents=True, exist_ok=True)
+
+
+def load_config(toml_path: Path | None = None, **overrides: object) -> KitForgeConfig:
+    """Load config from env vars, optional TOML file, then apply overrides."""
+    import tomllib
+
+    kwargs: dict[str, object] = {}
+
+    candidates = [toml_path, Path("kitforge.toml")] if toml_path else [Path("kitforge.toml")]
+    for p in candidates:
+        if p and p.exists():
+            with open(p, "rb") as f:
+                kwargs.update(tomllib.load(f))
+            break
+
+    kwargs.update(overrides)
+    return KitForgeConfig(**kwargs)

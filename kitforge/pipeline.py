@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import hashlib
+import time
 from dataclasses import dataclass, field
 from pathlib import Path
 
@@ -67,6 +68,7 @@ def build_kit(
     else:
         expected_stems = ["drums", "bass", "vocals", "other"]
 
+    t1 = time.perf_counter()
     if _stems_cached(stems_dir, song_hash, expected_stems):
         console.print("[bold blue]Stage 1/3:[/bold blue] Stems cached — skipping separation")
         stem_paths = {s: stems_dir / f"{s}.wav" for s in expected_stems}
@@ -80,9 +82,10 @@ def build_kit(
             six_stem=six_stem,
         )
         (stems_dir / ".song_hash").write_text(song_hash)
-        console.print(f"  stems → {stems_dir}")
+    console.print(f"  [dim]separation: {time.perf_counter()-t1:.1f}s[/dim]")
 
     # ── Stage 2: Extract samples ─────────────────────────────────────────────
+    t2 = time.perf_counter()
     console.print("[bold blue]Stage 2/3:[/bold blue] Extracting samples...")
     sample_dir = out_path if out_path.suffix == "" else out_path.parent / out_path.stem
     sample_dir.mkdir(parents=True, exist_ok=True)
@@ -95,6 +98,7 @@ def build_kit(
             "rr": config.round_robins,
             "vel_buckets": config.velocity_buckets,
             "tail_db": config.tail_detection_db,
+            "out": str(sample_dir),
         }
         ck = cache_key(drum_wav, "drum_slicer", _SLICER_VERSION, slicer_params)
 
@@ -106,8 +110,10 @@ def build_kit(
             stage_cache.set(ck, one_shots)
 
         result.sample_dir = sample_dir
+        console.print(f"  [dim]extraction: {time.perf_counter()-t2:.1f}s — {len(one_shots)} one-shots[/dim]")
 
         # ── Stage 3: Package ─────────────────────────────────────────────────
+        t3 = time.perf_counter()
         console.print("[bold blue]Stage 3/3:[/bold blue] Writing SFZ and DecentSampler preset...")
         from kitforge.package.sfz_writer import write_drum_sfz
         from kitforge.package.decentsampler_writer import write_drum_dspreset
@@ -119,6 +125,7 @@ def build_kit(
 
         result.sfz_path = sfz_path
         result.dspreset_path = dspreset_path
+        console.print(f"  [dim]packaging: {time.perf_counter()-t3:.1f}s[/dim]")
 
         if not one_shots:
             result.warnings.append("No one-shots detected — try a song with a clearer drum part")
@@ -131,6 +138,7 @@ def build_kit(
         pitcher_params = {
             "lo": lo_midi,
             "hi": hi_midi,
+            "out": str(sample_dir),
         }
         ck = cache_key(bass_wav, "bass_pitcher", _PITCHER_VERSION, pitcher_params)
 
@@ -146,8 +154,10 @@ def build_kit(
             stage_cache.set(ck, shots)
 
         result.sample_dir = sample_dir
+        console.print(f"  [dim]extraction: {time.perf_counter()-t2:.1f}s — {len(shots)} zones[/dim]")
 
         # ── Stage 3: Package ─────────────────────────────────────────────────
+        t3 = time.perf_counter()
         console.print("[bold blue]Stage 3/3:[/bold blue] Writing SFZ and DecentSampler preset...")
         from kitforge.package.sfz_writer import write_pitched_sfz
         from kitforge.package.decentsampler_writer import write_pitched_dspreset
@@ -159,6 +169,7 @@ def build_kit(
 
         result.sfz_path = sfz_path
         result.dspreset_path = dspreset_path
+        console.print(f"  [dim]packaging: {time.perf_counter()-t3:.1f}s[/dim]")
 
         if not shots:
             result.warnings.append("No bass notes detected — check that the song has a clear bass part")

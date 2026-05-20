@@ -188,13 +188,15 @@ def _collect_real_samples(
     note_events: list[tuple[float, float, int]],
     debug: bool,
 ) -> dict[int, np.ndarray]:
-    """Pick the longest occurrence per MIDI note as the canonical sample."""
-    best: dict[int, tuple[float, np.ndarray]] = {}  # midi → (duration, audio)
+    """
+    Collect all occurrences per MIDI note, then pick the canonical sample via
+    CLAP medoid (most timbrally central). Falls back to longest if CLAP unavailable.
+    """
+    from kitforge.extract.cluster import pick_medoid
+
+    all_occurrences: dict[int, list[tuple[float, np.ndarray]]] = {}
 
     for start_s, end_s, midi_note in note_events:
-        dur = end_s - start_s
-        if midi_note in best and best[midi_note][0] >= dur:
-            continue
         start_i = int(start_s * sr)
         end_i = min(int(end_s * sr), len(y))
         slc = y[start_i:end_i]
@@ -204,9 +206,16 @@ def _collect_real_samples(
             continue
         target = 10 ** (NORMALIZE_DBFS / 20.0)
         slc = (slc * (target / peak)).astype(np.float32)
-        best[midi_note] = (dur, slc)
+        dur = end_s - start_s
+        all_occurrences.setdefault(midi_note, []).append((dur, slc))
 
-    return {note: audio for note, (_, audio) in best.items()}
+    # Pick canonical per note: CLAP medoid (falls back to first/longest)
+    result: dict[int, np.ndarray] = {}
+    for midi_note, occurrences in all_occurrences.items():
+        occurrences.sort(key=lambda x: x[0], reverse=True)  # longest first for fallback
+        result[midi_note] = pick_medoid(occurrences, sr)
+
+    return result
 
 
 def _fill_range(

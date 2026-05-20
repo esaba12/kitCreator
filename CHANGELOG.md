@@ -7,8 +7,21 @@ All notable changes to kitCreator. Entries are grouped by feature area, not by i
 ## [Unreleased]
 
 ### Planned
-- CLAP-embedding clustering for round-robin sample selection
 - DeepFilterNet post-separation denoising
+
+---
+
+## 2026-05-20 — CLAP-Embedding Clustering
+
+### Added
+- `timbre/clap_embed.py` — LAION-CLAP 512-d audio embeddings; lazy singleton (`630k-audioset-best.pt`, ~600 MB, downloaded from HuggingFace on first use); `embed(audio, sr)` and `embed_batch(clips)` with 48 kHz resampling + zero-pad to 10 s
+- `extract/cluster.py` — `pick_medoid(clips, sr)` and `pick_diverse_rr(clips, sr, n)` using farthest-point sampling over CLAP embeddings; both fall back to energy/index selection if CLAP is unavailable or raises
+- `extract/slicer.py` — drum round-robin selection now uses `pick_diverse_rr` within each velocity bucket instead of evenly-spread indexing; `_assign_velocity_buckets` gains `sr` parameter
+- `extract/pitched_slicer.py` — `_collect_real_samples` now collects all occurrences per MIDI note and picks the canonical via `pick_medoid` (CLAP medoid); previously picked longest occurrence only
+
+### Notes
+- CLAP model (~600 MB) downloads once to the `laion_clap` package directory on first kit build
+- Both cluster functions are exception-safe: any CLAP failure silently falls back to the prior energy/spread heuristics so the pipeline never breaks
 
 ---
 

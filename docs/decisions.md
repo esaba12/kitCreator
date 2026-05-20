@@ -79,6 +79,19 @@ A truncated download (partial file) would fail silently at `load_from_checkpoint
 
 ---
 
+## CLAP Clustering
+
+**Farthest-point sampling instead of HDBSCAN for round-robin selection**
+The architecture spec says "HDBSCAN on CLAP embeddings → pick medoid + 2–4 round-robins." HDBSCAN is used for picking a canonical sample (the medoid is the clip closest to the cluster centroid). For round-robin selection, farthest-point sampling is better: it directly maximises pairwise cosine distance across the selected set without requiring HDBSCAN's density-based clusters, which degenerate to noise on small N. HDBSCAN would be relevant when clustering hundreds of clips across many songs to find timbral outliers; for per-song hit selection (typically 5–20 clips per velocity bucket), farthest-point is simpler and more predictable.
+
+**CLAP model loads once per process — do not load per clip**
+`_model` in `clap_embed.py` is a module-level singleton. The model is ~600 MB. Loading it per `pick_diverse_rr` call would cost ~10 s startup every time. The singleton ensures it's loaded once on first call and reused for all subsequent calls in the same pipeline run.
+
+**Exception-safe wrappers allow pipeline to run without CLAP**
+Both `pick_medoid` and `pick_diverse_rr` catch all exceptions from the CLAP call and fall back to index-based selection. This means: (a) first-run with no internet access still works (falls back), (b) any future CLAP API change won't break the pipeline, (c) testing without triggering a 600 MB download is easy (patch `embed_batch = None`).
+
+---
+
 ## Infrastructure
 
 **`torchcrepe` instead of `crepe` from PyPI**

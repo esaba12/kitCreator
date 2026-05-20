@@ -200,11 +200,11 @@ demucs_runner.py       htdemucs_ft → drums.wav, bass.wav, vocals.wav, other.wa
 | `extract/slicer.py` | ✅ Working | Drum onset detection, velocity-layered one-shot slicing |
 | `extract/pitched_slicer.py` | ✅ Working | Bass f0 / polyphonic note events → per-note samples + zone fill |
 | `extract/adsr.py` | 🔲 Stub | ADSR envelope estimation for pitched samples |
-| `extract/cluster.py` | 🔲 Stub | HDBSCAN over CLAP embeddings for RR selection |
+| `extract/cluster.py` | ✅ Working | CLAP-based medoid + farthest-point RR selection |
 | `extract/denoise.py` | 🔲 Stub | DeepFilterNet post-separation cleanup |
 | `extract/loop_finder.py` | 🔲 Stub | Autocorrelation loop-point search |
 | `pitchshift/rubberband_wrapper.py` | ✅ Working | Rubber Band R3 pitch shifting |
-| `timbre/clap_embed.py` | 🔲 Stub | LAION-CLAP 512-d timbre embeddings |
+| `timbre/clap_embed.py` | ✅ Working | LAION-CLAP 512-d timbre embeddings (lazy singleton, 600 MB download on first use) |
 | `package/sfz_writer.py` | ✅ Working | SFZ: drums (vel layers, RR, choke) + pitched (zones) |
 | `package/decentsampler_writer.py` | ✅ Working | DecentSampler XML: same structure |
 | `package/ableton_writer.py` | 🔲 Stub | Ableton .adg drum rack export (Phase 2) |

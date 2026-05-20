@@ -81,7 +81,7 @@ def _slice_from_larsnet_stems(
         y_stereo, _ = librosa.load(str(wav_path), sr=None, mono=False)
         is_stereo = y_stereo.ndim > 1 and y_stereo.shape[0] == 2
 
-        bucketed = _assign_velocity_buckets(slices, drum_class)
+        bucketed = _assign_velocity_buckets(slices, drum_class, sr=sr)
 
         for vel_low, vel_high, rr_slices in bucketed:
             for rr_i, slc in enumerate(rr_slices):
@@ -123,7 +123,7 @@ def _slice_with_band_split(
             print(f"  {drum_class}: {len(onsets)} onsets")
 
         slices = _slice_at_onsets(y_mono, onsets, sr)
-        bucketed = _assign_velocity_buckets(slices, drum_class)
+        bucketed = _assign_velocity_buckets(slices, drum_class, sr=sr)
 
         for vel_low, vel_high, rr_slices in bucketed:
             for rr_i, slc in enumerate(rr_slices):
@@ -146,17 +146,20 @@ def _slice_with_band_split(
 def _assign_velocity_buckets(
     slices: list[tuple[float, np.ndarray]],
     drum_class: str,
+    sr: int = 44100,
     n_buckets: int = MAX_VELOCITY_BUCKETS,
     rr_per_bucket: int = MAX_ROUND_ROBINS,
 ) -> list[tuple[int, int, list[np.ndarray]]]:
     """
     Sort (peak, audio) pairs by raw peak energy, divide into velocity layers,
-    pick rr_per_bucket samples spread across each bucket.
+    then pick rr_per_bucket timbrally-diverse round-robins per bucket via CLAP.
 
     Returns list of (vel_low, vel_high, [normalized_slices]) tuples.
     """
     if not slices:
         return []
+
+    from kitforge.extract.cluster import pick_diverse_rr
 
     sorted_pairs = sorted(slices, key=lambda p: p[0])
 
@@ -170,13 +173,11 @@ def _assign_velocity_buckets(
         hi_i = int((b + 1) * bucket_size)
         bucket = sorted_pairs[lo_i:hi_i]
 
-        if len(bucket) > rr_per_bucket:
-            step = len(bucket) / rr_per_bucket
-            bucket = [bucket[int(i * step)] for i in range(rr_per_bucket)]
+        rr_audios = pick_diverse_rr(bucket, sr, n=rr_per_bucket)
 
         vel_low = b * vel_step
         vel_high = 127 if b == actual_buckets - 1 else (b + 1) * vel_step - 1
-        result.append((vel_low, vel_high, [audio for _, audio in bucket]))
+        result.append((vel_low, vel_high, rr_audios))
 
     return result
 

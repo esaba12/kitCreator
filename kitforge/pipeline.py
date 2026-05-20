@@ -127,7 +127,7 @@ def build_kit(
         from kitforge.extract.pitched_slicer import slice_bass_stem
 
         bass_wav = stem_paths["bass"]
-        lo_midi, hi_midi = _parse_note_range(note_range, default=(28, 67))  # E1–G4
+        lo_midi, hi_midi = _parse_note_range(note_range, default=(24, 67))  # C1–G4
         pitcher_params = {
             "lo": lo_midi,
             "hi": hi_midi,

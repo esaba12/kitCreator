@@ -30,24 +30,38 @@ class PitchedShot:
     hikey: int       # SFZ/DS zone high boundary
 
 
+_CREPE_SR = 16000  # torchcrepe's native rate — load at this to avoid double-buffering
+_TRACK_MAX_S = 90.0  # cap f0 tracking to first N seconds — enough to find all pitches
+
+
 def slice_bass_stem(
     bass_wav: Path,
     out_dir: Path,
-    note_range: tuple[int, int] = (28, 67),  # E1–G4
+    note_range: tuple[int, int] = (24, 67),  # C1–G4
     debug: bool = False,
 ) -> list[PitchedShot]:
     """Extract per-note samples from a bass stem, fill the target MIDI range."""
     from kitforge.transcribe.crepe_mono import track_f0
     from kitforge.pitchshift.rubberband_wrapper import pitch_shift
 
+    # Load at native SR for high-quality sample slicing
     y, sr = librosa.load(str(bass_wav), sr=None, mono=True)
 
     if debug:
         print(f"  bass: loaded {len(y)/sr:.1f}s @ {sr}Hz")
 
+    # Load at 16kHz, capped, for f0 tracking — avoids OOM on long songs
+    track_samples = int(_TRACK_MAX_S * _CREPE_SR)
+    y_track, _ = librosa.load(str(bass_wav), sr=_CREPE_SR, mono=True)
+    y_track = y_track[:track_samples]
+    if debug:
+        print(f"  bass: tracking f0 on {len(y_track)/_CREPE_SR:.1f}s")
+
     times, f0, periodicity = track_f0(
-        y, sr, hop_length=_HOP_LENGTH, fmin=_BASS_FMIN, fmax=_BASS_FMAX
+        y_track, _CREPE_SR, hop_length=_HOP_LENGTH, fmin=_BASS_FMIN, fmax=_BASS_FMAX
     )
+
+    del y_track  # free 16kHz buffer before heavy slicing work
 
     note_events = _segment_notes(times, f0, periodicity, sr)
     if debug:
@@ -192,7 +206,7 @@ def _fill_range(
         else:
             src_note = nearest  # sampler handles the small shift
 
-        note_name = librosa.midi_to_note(midi_note).replace("#", "s").replace(" ", "")
+        note_name = librosa.midi_to_note(midi_note).replace("#", "s").replace("♯", "s").replace(" ", "")
         fname = sample_dir / f"bass_{note_name}_midi{midi_note}.wav"
         sf.write(str(fname), audio, sr, subtype="PCM_24")
 

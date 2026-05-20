@@ -12,7 +12,7 @@ def track_f0(
     fmin: float = 32.7,
     fmax: float = 2093.0,
     model: str = "full",
-    batch_size: int = 2048,
+    batch_size: int = 512,
 ) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
     """Return (times_s, f0_hz, periodicity) arrays for a monophonic audio signal."""
     import torchcrepe

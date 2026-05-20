@@ -8,8 +8,26 @@ All notable changes to kitCreator. Entries are grouped by feature area, not by i
 
 ### Planned
 - `query_separator.py` — Banquet CLAP-query separation for guitar/piano/synth from "other" stem
-- `basic_pitch_runner.py` — Spotify Basic Pitch polyphonic transcription
-- General pitched instruments: `--instrument "guitar"`, `"piano"`, `"lead synth"`
+
+---
+
+## 2026-05-19 — General Pitched Instruments: Guitar, Piano, Synth (Phase 1.2)
+
+### Added
+- `--instrument guitar` / `acoustic guitar` / `electric guitar` — uses htdemucs_6s guitar stem
+- `--instrument piano` / `keys` / `keyboard` / `electric piano` / `rhodes` — uses htdemucs_6s piano stem
+- `--instrument synth` / `lead synth` / `lead` / `pad` / `organ` — uses htdemucs_ft "other" stem
+- `transcribe/basic_pitch_runner.py` — Spotify Basic Pitch polyphonic transcription; returns `list[tuple[start_s, end_s, midi_note, amplitude]]`
+- `extract/pitched_slicer.py` — `slice_pitched_stem()` for polyphonic note events from Basic Pitch
+- Default MIDI ranges: guitar E2–E6 (40–88), piano C2–C7 (36–96), synth C3–C6 (48–84)
+- htdemucs_6s (6-stem model) auto-selected when instrument is guitar or piano; htdemucs_ft used otherwise
+
+### Fixed
+- Basic Pitch stdout/stderr noise ("isfinite: True", "shape:", "Predicting MIDI for ...") fully suppressed via `sys.stdout`/`sys.stderr` redirect + `logging.disable(CRITICAL)` in `_silence()` context manager
+
+### Notes
+- Sparse results (few zones) on loop-based production tracks are expected — the pipeline finds what's actually in the stem
+- htdemucs_6s downloads a ~52 MB model on first use
 
 ---
 

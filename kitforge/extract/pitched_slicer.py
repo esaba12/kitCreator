@@ -83,6 +83,41 @@ def slice_bass_stem(
     return shots
 
 
+def slice_pitched_stem(
+    stem_wav: Path,
+    note_events: list[tuple[float, float, int, float]],  # (start_s, end_s, midi, amplitude)
+    out_dir: Path,
+    note_range: tuple[int, int] = (36, 84),  # C2–C6
+    debug: bool = False,
+) -> list[PitchedShot]:
+    """
+    Slice a polyphonic pitched stem using pre-computed note events (e.g. from Basic Pitch).
+    Used for guitar, piano, synth — anything that isn't bass.
+    """
+    from kitforge.pitchshift.rubberband_wrapper import pitch_shift
+
+    y, sr = librosa.load(str(stem_wav), sr=None, mono=True)
+
+    if debug:
+        print(f"  pitched: loaded {len(y)/sr:.1f}s @ {sr}Hz, {len(note_events)} note events")
+
+    # Strip amplitude — _collect_real_samples only needs (start, end, midi)
+    events_triples = [(s, e, n) for s, e, n, _ in note_events]
+    real_samples = _collect_real_samples(y, sr, events_triples, debug)
+
+    if debug:
+        print(f"  pitched: {len(real_samples)} unique pitches: {sorted(real_samples)}")
+
+    if not real_samples:
+        return []
+
+    sample_dir = out_dir / "samples"
+    sample_dir.mkdir(parents=True, exist_ok=True)
+
+    lo, hi = note_range
+    return _fill_range(real_samples, lo, hi, sample_dir, sr, pitch_shift, debug)
+
+
 # ── internal helpers ─────────────────────────────────────────────────────────
 
 def _hz_to_midi(f0: np.ndarray) -> np.ndarray:

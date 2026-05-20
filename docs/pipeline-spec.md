@@ -84,6 +84,42 @@ Precise definitions of what each instrument pipeline produces. This is the contr
 
 ---
 
+## Guitar / Piano / Synth
+
+**Trigger:**
+- Guitar: `--instrument guitar` (also: `electric guitar`, `acoustic guitar`)
+- Piano: `--instrument piano` (also: `keys`, `keyboard`, `electric piano`, `rhodes`)
+- Synth: `--instrument synth` (also: `lead synth`, `lead`, `pad`, `organ`, `synth lead`)
+
+### Input
+- Any supported audio file
+- `--range LO-HI` (e.g. `E2-E6`); defaults: guitar E2–E6 (40–88), piano C2–C7 (36–96), synth C3–C6 (48–84)
+
+### Stage 1 — Source separation
+- Guitar/piano: `htdemucs_6s` (6-stem) — provides dedicated `guitar.wav` and `piano.wav` stems
+- Synth: `htdemucs_ft` (4-stem) — uses `other.wav`
+- Cached same as drums
+
+### Stage 2 — Polyphonic transcription
+- Library: Spotify Basic Pitch (Apache 2.0), CoreML model on Mac
+- Input: stem WAV at native SR
+- Parameters: `onset_threshold=0.5`, `frame_threshold=0.3`, `minimum_note_length=60 ms`
+- Returns: `list[(start_s, end_s, midi_note, amplitude)]`
+- All stdout/stderr/logging suppressed during inference via `_silence()` context manager
+
+### Stage 3 — Per-note sample collection
+- For each unique MIDI note: longest occurrence chosen as canonical sample
+- Sample capped at 4.0 s, peak normalized to −1 dBFS
+
+### Stage 4 — Voronoi zone fill
+- Same algorithm as bass: midpoint boundaries, Rubber Band R3 pre-shift when gap > 6 semitones
+
+### Output
+- Sample files: `samples/bass_{note}_midi{n}.wav` (reuses bass filename scheme)
+- `kit.sfz` and `kit.dspreset` — same pitched format as bass
+
+---
+
 ## SFZ Format — Drums
 
 ```sfz
@@ -175,6 +211,7 @@ Every pipeline stage is cached. Cache is never stale — keys change when inputs
 | Demucs separation | SHA-256 sentinel file at `stems_dir/.song_hash` | Input file content hash |
 | Drum slicing | diskcache (`stage_cache/`) | drum_wav hash, stage version, `round_robins`, `velocity_buckets`, `tail_db`, output dir |
 | Bass pitching | diskcache (`stage_cache/`) | bass_wav hash, stage version, `lo_midi`, `hi_midi`, output dir |
+| Guitar/piano/synth | diskcache (`stage_cache/`) | stem_wav hash, stage version, `lo_midi`, `hi_midi`, stem path, output dir |
 
 **Version bumping:** increment `_SLICER_VERSION` or `_PITCHER_VERSION` in `pipeline.py` to invalidate cached results after logic changes.
 

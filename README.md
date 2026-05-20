@@ -8,7 +8,7 @@ Built by Ethan Saba.
 
 ## What works right now
 
-**Drums and bass are working end-to-end.**
+**Drums, bass, guitar, piano, and synth are working end-to-end.**
 
 ```bash
 # Drum kit
@@ -16,6 +16,11 @@ kitforge build --song mysong.wav --instrument drums --out ~/Desktop/my_kit
 
 # Bass kit
 kitforge build --song mysong.wav --instrument bass --range C1-G4 --out ~/Desktop/bass_kit
+
+# Guitar / piano / synth
+kitforge build --song mysong.wav --instrument guitar --out ~/Desktop/guitar_kit
+kitforge build --song mysong.wav --instrument piano --range C2-C7 --out ~/Desktop/piano_kit
+kitforge build --song mysong.wav --instrument "lead synth" --out ~/Desktop/synth_kit
 ```
 
 ### Drums pipeline
@@ -35,6 +40,14 @@ kitforge build --song mysong.wav --instrument bass --range C1-G4 --out ~/Desktop
 5. **Voronoi zone fill** — assigns `lokey/hikey` boundaries between adjacent real samples; gaps > 6 semitones get pre-shifted via Rubber Band R3
 6. **SFZ + DecentSampler export** — `pitch_keycenter` per zone
 
+### Guitar / Piano / Synth pipeline
+
+1. **Demucs** — guitar/piano use `htdemucs_6s` (6-stem, dedicated stems); synth uses `htdemucs_ft` "other" stem
+2. **Basic Pitch** — Spotify's polyphonic transcription model; converts the stem to MIDI note events
+3. **Per-note slicing** — picks longest occurrence of each MIDI pitch as canonical sample
+4. **Voronoi zone fill** — same as bass; Rubber Band R3 pre-shift for gaps > 6 semitones
+5. **SFZ + DecentSampler export** — `pitch_keycenter` per zone
+
 ### Output structure
 
 ```
@@ -47,10 +60,11 @@ my_kit/
     ├── hihat_v0_1.wav … hihat_v96_4.wav
     ├── toms_v0_1.wav  … toms_v96_4.wav
     ├── cymbals_v0_1.wav … cymbals_v96_4.wav
-    └── bass_C2_midi36.wav …                 # bass: one file per zone
+    ├── bass_C2_midi36.wav …                 # bass: one file per zone
+    └── bass_E2_midi40.wav …                 # guitar/piano/synth: same scheme
 ```
 
-Sample filename convention — drums: `{class}_v{vel_low}_{rr_index}.wav`, bass: `bass_{note}_{midi}.wav`
+Sample filename convention — drums: `{class}_v{vel_low}_{rr_index}.wav`, pitched: `bass_{note}_{midi}.wav`
 
 ### Drum SFZ MIDI layout (GM-adjacent)
 
@@ -108,6 +122,11 @@ kitforge build --song song.wav --instrument bass --out ~/Desktop/bass_kit
 # Bass kit with explicit range
 kitforge build --song song.wav --instrument bass --range E1-C5 --out ~/Desktop/bass_kit
 
+# Guitar / piano / synth
+kitforge build --song song.wav --instrument guitar --out ~/Desktop/guitar_kit
+kitforge build --song song.wav --instrument piano --range C2-C7 --out ~/Desktop/piano_kit
+kitforge build --song song.wav --instrument "lead synth" --out ~/Desktop/synth_kit
+
 # Flags
 --quality fast|default|high    # fast = htdemucs, default/high = htdemucs_ft
 --debug                        # extra diagnostics and intermediate WAV locations
@@ -151,11 +170,19 @@ demucs_runner.py       htdemucs_ft → drums.wav, bass.wav, vocals.wav, other.wa
   │   sfz_writer.py        kit.sfz  (vel layers, round-robins, hihat choke)
   │   decentsampler_writer.py  kit.dspreset
   │
-  └─▶ (bass)
-      crepe_mono.py        torchcrepe f0 → (times, f0_hz, periodicity)
-      pitched_slicer.py    note segmentation → per-note slices → Voronoi zone fill
+  ├─▶ (bass)
+  │   crepe_mono.py        torchcrepe f0 → (times, f0_hz, periodicity)
+  │   pitched_slicer.py    note segmentation → per-note slices → Voronoi zone fill
+  │   rubberband_wrapper.py  Rubber Band R3 pre-shift for gaps > 6 semitones
+  │   sfz_writer.py        kit.sfz  (lokey/hikey/pitch_keycenter per zone)
+  │   decentsampler_writer.py  kit.dspreset
+  │
+  └─▶ (guitar / piano / synth)
+      demucs_runner.py     htdemucs_6s (guitar/piano) or htdemucs_ft other stem (synth)
+      basic_pitch_runner.py  Basic Pitch polyphonic transcription → note events
+      pitched_slicer.py    per-note slices → Voronoi zone fill (same as bass)
       rubberband_wrapper.py  Rubber Band R3 pre-shift for gaps > 6 semitones
-      sfz_writer.py        kit.sfz  (lokey/hikey/pitch_keycenter per zone)
+      sfz_writer.py        kit.sfz
       decentsampler_writer.py  kit.dspreset
 ```
 
@@ -168,10 +195,10 @@ demucs_runner.py       htdemucs_ft → drums.wav, bass.wav, vocals.wav, other.wa
 | `separation/roformer_runner.py` | 🔲 Stub | BS-RoFormer high-quality mode |
 | `separation/query_separator.py` | 🔲 Stub | Banquet CLAP-query sub-instrument router |
 | `transcribe/crepe_mono.py` | ✅ Working | torchcrepe monophonic f0 tracking for bass/lead |
-| `transcribe/basic_pitch_runner.py` | 🔲 Stub | Polyphonic note transcription for pitched stems |
+| `transcribe/basic_pitch_runner.py` | ✅ Working | Basic Pitch polyphonic transcription for guitar/piano/synth |
 | `transcribe/mt3_runner.py` | 🔲 Stub | Multi-instrument joint transcription (deferred) |
 | `extract/slicer.py` | ✅ Working | Drum onset detection, velocity-layered one-shot slicing |
-| `extract/pitched_slicer.py` | ✅ Working | Bass f0 → note events → per-note samples + zone fill |
+| `extract/pitched_slicer.py` | ✅ Working | Bass f0 / polyphonic note events → per-note samples + zone fill |
 | `extract/adsr.py` | 🔲 Stub | ADSR envelope estimation for pitched samples |
 | `extract/cluster.py` | 🔲 Stub | HDBSCAN over CLAP embeddings for RR selection |
 | `extract/denoise.py` | 🔲 Stub | DeepFilterNet post-separation cleanup |
@@ -188,16 +215,9 @@ demucs_runner.py       htdemucs_ft → drums.wav, bass.wav, vocals.wav, other.wa
 
 ## Roadmap
 
-### Next: General pitched instruments (Phase 1.2 remaining)
+### Next: Query-based sub-instrument separation
 
-The remaining hard problem: isolating guitar / piano / synth from the "other" stem.
-`htdemucs_6s` piano quality is poor (flagged in Meta's README). The plan:
-
-1. **`query_separator.py`** — Banquet CLAP-query-conditioned separator; routes the "other"
-   stem by instrument query (e.g. "electric guitar")
-2. **`basic_pitch_runner.py`** — Spotify Basic Pitch polyphonic transcription; converts
-   audio → MIDI note events for voiced stems
-3. Wire both into `pipeline.py` for `--instrument "guitar"`, `"piano"`, `"lead synth"`
+Guitar / piano / synth currently use htdemucs stems directly. For better isolation (especially piano — htdemucs_6s piano quality is flagged as poor in Meta's README), the next step is `query_separator.py`: a Banquet CLAP-query-conditioned separator that routes the "other" stem by instrument query (e.g. "electric guitar").
 
 ### Phase 2 — DAC-token language model
 

@@ -79,6 +79,16 @@ A truncated download (partial file) would fail silently at `load_from_checkpoint
 
 ---
 
+## DeepFilterNet Denoising
+
+**Monkey-patch torchaudio.backend.common before importing deepfilternet**
+deepfilternet 0.5.6 imports `torchaudio.backend.common.AudioMetaData` and calls `torchaudio.info()`. Both were removed in torchaudio 2.0. The package hasn't released a fix. Rather than pinning torchaudio (which would break Demucs MPS paths), `_patch_torchaudio()` injects a stub `torchaudio.backend.common` module and a `torchaudio.info` shim (backed by soundfile) before any `df.*` import. This is safe because our code calls `enhance(model, df_state, tensor)` directly — we never call `load_audio` from `df.io`, so the stub only needs to satisfy the module-level import, not the function body.
+
+**Denoising runs on the stem, not per-slice**
+Per the architecture spec, denoising happens at "step 4 de-bleed each slice." We apply it at the full-stem level (before slicing) rather than per-slice for two reasons: (1) DeepFilterNet works better on longer audio where it has context to distinguish signal from noise; (2) applying it N times per drum class would multiply wall time by N with diminishing returns. The stem-level pass removes the same residual bleed that would appear in every slice.
+
+---
+
 ## CLAP Clustering
 
 **Farthest-point sampling instead of HDBSCAN for round-robin selection**

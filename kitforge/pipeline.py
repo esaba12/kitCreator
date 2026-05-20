@@ -30,6 +30,7 @@ _SLICER_VERSION = "1.1"
 _PITCHER_VERSION = "1.0"
 _BASIC_PITCH_VERSION = "1.0"
 _BANQUET_VERSION = "1.0"
+_DENOISE_VERSION = "1.0"
 
 
 @dataclass
@@ -105,6 +106,9 @@ def build_kit(
         from kitforge.extract.slicer import slice_drum_stem
 
         drum_wav = stem_paths["drums"]
+        if config.separator_quality == "high":
+            drum_wav = _denoise_stem(drum_wav, stems_dir, stage_cache, config.debug)
+
         slicer_params = {
             "rr": config.round_robins,
             "vel_buckets": config.velocity_buckets,
@@ -145,6 +149,9 @@ def build_kit(
         from kitforge.extract.pitched_slicer import slice_bass_stem
 
         bass_wav = stem_paths["bass"]
+        if config.separator_quality == "high":
+            bass_wav = _denoise_stem(bass_wav, stems_dir, stage_cache, config.debug)
+
         lo_midi, hi_midi = _parse_note_range(note_range, default=(24, 67))  # C1–G4
         pitcher_params = {
             "lo": lo_midi,
@@ -216,6 +223,9 @@ def build_kit(
             console.print(
                 "  [dim](tip: run 'kitforge setup-banquet' for even better quality at --quality high)[/dim]"
             )
+
+        if config.separator_quality == "high":
+            stem_wav = _denoise_stem(stem_wav, stems_dir, stage_cache, config.debug)
 
         bp_params = {"lo": lo_midi, "hi": hi_midi, "out": str(sample_dir), "stem": str(stem_wav)}
         ck = cache_key(stem_wav, f"basic_pitch_{family}", _BASIC_PITCH_VERSION, bp_params)
@@ -318,6 +328,42 @@ def _banquet_refine(
         query_path.unlink(missing_ok=True)
 
     return refined_path
+
+
+def _denoise_stem(
+    stem_wav: Path,
+    stems_dir: Path,
+    stage_cache,
+    debug: bool,
+) -> Path:
+    """
+    Run DeepFilterNet3 on stem_wav and write the result next to the original stem.
+    Returns the denoised stem path; returns the original on any error.
+    """
+    from kitforge.extract.denoise import denoise_file, is_available
+    from kitforge.cache import cache_key
+
+    if not is_available():
+        return stem_wav
+
+    denoised_path = stems_dir / f"denoised_{stem_wav.name}"
+    ck = cache_key(stem_wav, "deepfilter3", _DENOISE_VERSION, {})
+
+    if denoised_path.exists() and stage_cache.has(ck):
+        if debug:
+            console.print(f"  [dim]denoise: cached {denoised_path.name}[/dim]")
+        return denoised_path
+
+    console.print(f"  [dim]DeepFilterNet: denoising {stem_wav.name}...[/dim]")
+    try:
+        denoise_file(stem_wav, denoised_path)
+        stage_cache.set(ck, str(denoised_path))
+    except Exception as e:
+        if debug:
+            console.print(f"  [dim]denoise failed: {e}[/dim]")
+        return stem_wav
+
+    return denoised_path
 
 
 def _cached_files_exist(shots: list | None) -> bool:

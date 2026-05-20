@@ -6,8 +6,19 @@ All notable changes to kitCreator. Entries are grouped by feature area, not by i
 
 ## [Unreleased]
 
-### Planned
-- DeepFilterNet post-separation denoising
+---
+
+## 2026-05-20 — DeepFilterNet Post-Separation Denoising
+
+### Added
+- `extract/denoise.py` — DeepFilterNet3 noise suppression; `denoise(audio, sr)` and `denoise_file(src, dst)` with automatic 48 kHz resampling; lazy singleton model (~5 MB download to `~/Library/Caches/DeepFilterNet/` on first call)
+- `pipeline.py` — `_denoise_stem()` helper; denoising is applied to the target stem at `--quality high` before slicing, for all instrument types (drums, bass, guitar, piano, synth)
+- `_DENOISE_VERSION = "1.0"` cache key; denoised stem written as `denoised_<stem>.wav` alongside the separation cache
+
+### Notes
+- deepfilternet 0.5.6 imports `torchaudio.backend.common.AudioMetaData` and `torchaudio.info`, both removed in torchaudio 2.x — `_patch_torchaudio()` injects compatible stubs before any `df.*` import
+- DeepFilterNet runs on CPU, ~real-time speed; a 3-minute stem takes ~3 minutes; gated behind `--quality high`
+- On failure (network issue, etc.) `_denoise_stem` falls back to the undenoised stem silently
 
 ---
 

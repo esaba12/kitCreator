@@ -201,7 +201,7 @@ demucs_runner.py       htdemucs_ft → drums.wav, bass.wav, vocals.wav, other.wa
 | `extract/pitched_slicer.py` | ✅ Working | Bass f0 / polyphonic note events → per-note samples + zone fill |
 | `extract/adsr.py` | 🔲 Stub | ADSR envelope estimation for pitched samples |
 | `extract/cluster.py` | ✅ Working | CLAP-based medoid + farthest-point RR selection |
-| `extract/denoise.py` | 🔲 Stub | DeepFilterNet post-separation cleanup |
+| `extract/denoise.py` | ✅ Working | DeepFilterNet3 post-separation denoising (activated at --quality high) |
 | `extract/loop_finder.py` | 🔲 Stub | Autocorrelation loop-point search |
 | `pitchshift/rubberband_wrapper.py` | ✅ Working | Rubber Band R3 pitch shifting |
 | `timbre/clap_embed.py` | ✅ Working | LAION-CLAP 512-d timbre embeddings (lazy singleton, 600 MB download on first use) |

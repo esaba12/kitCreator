@@ -8,6 +8,21 @@ All notable changes to kitCreator. Entries are grouped by feature area, not by i
 
 ---
 
+## 2026-05-20 — Roland MC-101 Export (`--mc101`)
+
+### Added
+- `package/mc101_writer.py` — `export_drums(shots, kit_name, sd_root)` and `export_pitched(shots, instrument, kit_name, sd_root)`
+  - Drums: copies all velocity-layer WAVs as PCM_16 (MC-101 requirement) to `ROLAND/GROOVEBOX/SAMPLE/<songname>_drums/`; generates `SETUP.txt` with pad assignments (kick=1, snare=2, hihat=3, toms=5, cymbals=9, perc=13) and step-by-step load instructions
+  - Pitched: copies the single root-pitch sample (WAV closest to median MIDI note) to `ROLAND/GROOVEBOX/SAMPLE/<songname>_<instrument>/`; generates `SETUP.txt` with root key and transpose note; MC-101 handles chromatic transposition
+- `cli.py` — `--mc101 <path>` flag on `build` command; exports immediately after kit is built; reconstructs shot list from WAV filenames (no pipeline state required)
+
+### Notes
+- Drum WAVs from `slicer.py` are float32; `_copy_wav_pcm16` clips to [-1,1] and re-encodes as PCM_16 on export
+- Pitched WAVs are already PCM_24 — copied directly via `shutil.copy2`
+- MC-101 Tone track supports only 1 sample; root-sample export + `rootNote` instruction is the simplest workflow that works
+
+---
+
 ## 2026-05-20 — ADSR Envelope Estimation + Loop Point Detection
 
 ### Added

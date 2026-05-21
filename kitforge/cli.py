@@ -47,6 +47,7 @@ def build(
     quality: str = typer.Option("default", "--quality", help="Separation quality: fast | default | high"),
     debug: bool = typer.Option(False, "--debug/--no-debug", help="Write intermediate WAVs and extra diagnostics"),
     config_file: str = typer.Option(None, "--config", help="Path to TOML config file"),
+    mc101: str = typer.Option(None, "--mc101", help="Path to MC-101 SD card root (e.g. /Volumes/MC101)"),
 ) -> None:
     """Build a sampler kit from a song."""
     from kitforge.config import load_config
@@ -110,6 +111,95 @@ def build(
 
     for warning in result.warnings:
         console.print(f"\n[yellow]Warning:[/yellow] {warning}")
+
+    if mc101:
+        _export_mc101(mc101, song_path, instrument, result)
+
+
+def _export_mc101(mc101_str: str, song_path: Path, instrument: str, result) -> None:
+    from kitforge.package.mc101_writer import export_drums, export_pitched
+
+    sd_root = Path(mc101_str)
+    if not sd_root.exists():
+        console.print(f"[red]MC-101 path not found:[/red] {sd_root}")
+        return
+
+    kit_name = song_path.stem
+    instrument_lower = instrument.lower().strip()
+
+    console.print()
+    console.print("[bold blue]MC-101 export...[/bold blue]")
+
+    # Read shots back from the sample dir to avoid threading pipeline state through
+    if instrument_lower in {"drums", "drum", "kit", "drum kit"}:
+        if result.sample_dir is None:
+            console.print("[red]No sample dir — cannot export to MC-101[/red]")
+            return
+        from kitforge.extract.slicer import OneShot
+        shots = _load_drum_shots(result.sample_dir)
+        if not shots:
+            console.print("[yellow]No shots found in sample dir[/yellow]")
+            return
+        folder = export_drums(shots, kit_name, sd_root)
+        console.print(f"  [green]MC-101 drums[/green] → {folder}")
+    else:
+        if result.sample_dir is None:
+            console.print("[red]No sample dir — cannot export to MC-101[/red]")
+            return
+        shots = _load_pitched_shots(result.sample_dir)
+        if not shots:
+            console.print("[yellow]No pitched shots found in sample dir[/yellow]")
+            return
+        folder = export_pitched(shots, instrument_lower, kit_name, sd_root)
+        console.print(f"  [green]MC-101 pitched[/green] → {folder}")
+    console.print(f"  Read SETUP.txt in {folder} for pad/key assignments.")
+
+
+def _load_drum_shots(sample_dir: Path):
+    """Reconstruct minimal OneShot list from WAV filenames in sample_dir/samples/."""
+    from kitforge.extract.slicer import OneShot
+
+    wav_dir = sample_dir / "samples"
+    shots = []
+    for wav in sorted(wav_dir.glob("*.wav")):
+        # filename pattern: {class}_v{vel_low}_{rr_index}.wav  (rr is 1-indexed)
+        parts = wav.stem.rsplit("_", 2)
+        if len(parts) < 3:
+            continue
+        drum_class, vel_part, rr_str = parts
+        if not vel_part.startswith("v"):
+            continue
+        try:
+            vel_low = int(vel_part[1:])
+            rr_index = int(rr_str) - 1  # filenames are 1-indexed; OneShot stores 0-indexed
+        except ValueError:
+            continue
+        shots.append(OneShot(
+            path=wav,
+            drum_class=drum_class,
+            rr_index=rr_index,
+            vel_low=vel_low,
+            vel_high=vel_low,  # exact value not needed for MC-101 export
+        ))
+    return shots
+
+
+def _load_pitched_shots(sample_dir: Path):
+    """Reconstruct minimal PitchedShot list from WAV filenames in sample_dir/samples/."""
+    from kitforge.extract.pitched_slicer import PitchedShot
+
+    wav_dir = sample_dir / "samples"
+    shots = []
+    for wav in sorted(wav_dir.glob("*.wav")):
+        # filename pattern: bass_{note_name}_midi{midi_note}.wav
+        if "_midi" not in wav.stem:
+            continue
+        try:
+            midi_note = int(wav.stem.rsplit("_midi", 1)[1])
+        except (ValueError, IndexError):
+            continue
+        shots.append(PitchedShot(path=wav, midi_note=midi_note, lokey=midi_note, hikey=midi_note))
+    return shots
 
 
 @app.command(name="setup-banquet")

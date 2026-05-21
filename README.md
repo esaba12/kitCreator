@@ -199,10 +199,10 @@ demucs_runner.py       htdemucs_ft → drums.wav, bass.wav, vocals.wav, other.wa
 | `transcribe/mt3_runner.py` | 🔲 Stub | Multi-instrument joint transcription (deferred) |
 | `extract/slicer.py` | ✅ Working | Drum onset detection, velocity-layered one-shot slicing |
 | `extract/pitched_slicer.py` | ✅ Working | Bass f0 / polyphonic note events → per-note samples + zone fill |
-| `extract/adsr.py` | 🔲 Stub | ADSR envelope estimation for pitched samples |
+| `extract/adsr.py` | ✅ Working | ADSR envelope estimation (attack/decay/sustain/release from RMS envelope) |
 | `extract/cluster.py` | ✅ Working | CLAP-based medoid + farthest-point RR selection |
 | `extract/denoise.py` | ✅ Working | DeepFilterNet3 post-separation denoising (activated at --quality high) |
-| `extract/loop_finder.py` | 🔲 Stub | Autocorrelation loop-point search |
+| `extract/loop_finder.py` | ✅ Working | Autocorrelation loop-point search with zero-crossing alignment |
 | `pitchshift/rubberband_wrapper.py` | ✅ Working | Rubber Band R3 pitch shifting |
 | `timbre/clap_embed.py` | ✅ Working | LAION-CLAP 512-d timbre embeddings (lazy singleton, 600 MB download on first use) |
 | `package/sfz_writer.py` | ✅ Working | SFZ: drums (vel layers, RR, choke) + pitched (zones) |

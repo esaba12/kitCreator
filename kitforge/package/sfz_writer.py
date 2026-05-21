@@ -65,17 +65,28 @@ def write_drum_sfz(one_shots: list[OneShot], sfz_path: Path) -> None:
 
 
 def write_pitched_sfz(shots: list[PitchedShot], sfz_path: Path) -> None:
-    """Emit a SFZ pitched instrument (bass, etc.) — one zone per note."""
+    """Emit a SFZ pitched instrument — one zone per note, with per-region ADSR + loop."""
     lines = [
         "// kitforge pitched kit — SFZ format\n"
-        "<global>\nampeg_release=0.3\n",
+        "<global>\n",
         "<group>",
     ]
     for shot in sorted(shots, key=lambda s: s.lokey):
         rel_path = shot.path.relative_to(sfz_path.parent)
-        lines.append(
+        region = (
             f"<region> sample={rel_path}"
             f" lokey={shot.lokey} hikey={shot.hikey}"
             f" pitch_keycenter={shot.midi_note}"
         )
+        if shot.ampeg_attack is not None:
+            region += f" ampeg_attack={shot.ampeg_attack:.3f}"
+        if shot.ampeg_decay is not None:
+            region += f" ampeg_decay={shot.ampeg_decay:.3f}"
+        if shot.ampeg_sustain is not None:
+            region += f" ampeg_sustain={shot.ampeg_sustain:.1f}"
+        if shot.ampeg_release is not None:
+            region += f" ampeg_release={shot.ampeg_release:.3f}"
+        if shot.loop_start is not None:
+            region += f" loop_mode=loop_continuous loop_start={shot.loop_start} loop_end={shot.loop_end}"
+        lines.append(region)
     sfz_path.write_text("\n".join(lines) + "\n")

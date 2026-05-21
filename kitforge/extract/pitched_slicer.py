@@ -25,9 +25,15 @@ MAX_SHIFT_SEMITONES = 6           # beyond this, pre-shift with Rubber Band
 @dataclass
 class PitchedShot:
     path: Path
-    midi_note: int   # the actual MIDI note of the audio
-    lokey: int       # SFZ/DS zone low boundary
-    hikey: int       # SFZ/DS zone high boundary
+    midi_note: int            # actual MIDI note of the stored audio
+    lokey: int                # SFZ/DS zone low boundary
+    hikey: int                # SFZ/DS zone high boundary
+    ampeg_attack: float | None = None
+    ampeg_decay: float | None = None
+    ampeg_sustain: float | None = None   # 0–100 SFZ % scale
+    ampeg_release: float | None = None
+    loop_start: int | None = None        # sample offset into the WAV
+    loop_end: int | None = None          # sample offset into the WAV
 
 
 _CREPE_SR = 16000  # torchcrepe's native rate — load at this to avoid double-buffering
@@ -232,6 +238,9 @@ def _fill_range(
     Pre-shift with Rubber Band if gap > MAX_SHIFT_SEMITONES; otherwise
     let the sampler do it (wider zone).
     """
+    from kitforge.extract.adsr import estimate_adsr
+    from kitforge.extract.loop_finder import find_loop
+
     real_notes = sorted(real_samples)
     shots: list[PitchedShot] = []
 
@@ -244,26 +253,35 @@ def _fill_range(
         audio = real_samples[nearest]
 
         if abs(shift) > MAX_SHIFT_SEMITONES:
-            # Pre-generate the shifted file
             audio = pitch_shift_fn(audio, sr, float(shift))
             src_note = midi_note
         else:
-            src_note = nearest  # sampler handles the small shift
+            src_note = nearest
 
         note_name = librosa.midi_to_note(midi_note).replace("#", "s").replace("♯", "s").replace(" ", "")
         fname = sample_dir / f"bass_{note_name}_midi{midi_note}.wav"
         sf.write(str(fname), audio, sr, subtype="PCM_24")
+
+        adsr = estimate_adsr(audio, sr)
+        loop = find_loop(audio, sr)
 
         shots.append(PitchedShot(
             path=fname,
             midi_note=src_note,
             lokey=zone_lo,
             hikey=zone_hi,
+            ampeg_attack=adsr.attack,
+            ampeg_decay=adsr.decay,
+            ampeg_sustain=adsr.sustain,
+            ampeg_release=adsr.release,
+            loop_start=loop[0] if loop else None,
+            loop_end=loop[1] if loop else None,
         ))
 
         if debug:
             arrow = f"shifted {shift:+d}st from {nearest}" if shift != 0 else "real"
-            print(f"  {note_name} (midi {midi_note}): {arrow}, zone [{zone_lo},{zone_hi}]")
+            loop_str = f" loop=[{loop[0]},{loop[1]}]" if loop else ""
+            print(f"  {note_name} (midi {midi_note}): {arrow}, zone [{zone_lo},{zone_hi}]{loop_str}")
 
     return shots
 

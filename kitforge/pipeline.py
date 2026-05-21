@@ -27,8 +27,8 @@ _DEFAULT_RANGES: dict[str, tuple[int, int]] = {
 
 # Bump these when the corresponding stage logic changes to bust cached results
 _SLICER_VERSION = "1.1"
-_PITCHER_VERSION = "1.0"
-_BASIC_PITCH_VERSION = "1.0"
+_PITCHER_VERSION = "1.1"      # PitchedShot gained ADSR + loop fields
+_BASIC_PITCH_VERSION = "1.1"  # PitchedShot gained ADSR + loop fields
 _BANQUET_VERSION = "1.0"
 _DENOISE_VERSION = "1.0"
 

@@ -72,26 +72,49 @@ def write_drum_dspreset(one_shots: list[OneShot], dspreset_path: Path) -> None:
 
 def write_pitched_dspreset(shots: list[PitchedShot], dspreset_path: Path) -> None:
     """Emit a DecentSampler .dspreset for a pitched instrument."""
+    import numpy as np
+
     root = Element("DecentSampler", minVersion="1.0.0")
 
     ui = SubElement(root, "ui", width="812", height="375", bgMode="blank")
     SubElement(ui, "label", x="10", y="10", width="400", height="30",
-               text="kitforge bass kit", textSize="20", textColor="FFFFFFFF")
+               text="kitforge pitched kit", textSize="20", textColor="FFFFFFFF")
+
+    # Compute median ADSR across all zones (DS ADSR is per-group, not per-sample)
+    group_attrs: dict[str, str] = {}
+    attacks  = [s.ampeg_attack  for s in shots if s.ampeg_attack  is not None]
+    decays   = [s.ampeg_decay   for s in shots if s.ampeg_decay   is not None]
+    sustains = [s.ampeg_sustain for s in shots if s.ampeg_sustain is not None]
+    releases = [s.ampeg_release for s in shots if s.ampeg_release is not None]
+    if attacks:
+        group_attrs["attack"]  = f"{float(np.median(attacks)):.3f}"
+    if decays:
+        group_attrs["decay"]   = f"{float(np.median(decays)):.3f}"
+    if sustains:
+        # DS sustain is 0.0–1.0; SFZ is 0–100 %
+        group_attrs["sustain"] = f"{float(np.median(sustains)) / 100.0:.3f}"
+    if releases:
+        group_attrs["release"] = f"{float(np.median(releases)):.3f}"
 
     groups_el = SubElement(root, "groups")
-    group = SubElement(groups_el, "group")
+    group = SubElement(groups_el, "group", **group_attrs)
 
     for shot in sorted(shots, key=lambda s: s.lokey):
         rel_path = str(shot.path.relative_to(dspreset_path.parent))
-        SubElement(group, "sample", **{
-            "path": rel_path,
-            "loNote": str(shot.lokey),
-            "hiNote": str(shot.hikey),
+        sample_attrs: dict[str, str] = {
+            "path":     rel_path,
+            "loNote":   str(shot.lokey),
+            "hiNote":   str(shot.hikey),
             "rootNote": str(shot.midi_note),
-            "loVel": "0",
-            "hiVel": "127",
-            "volume": "1.0",
-        })
+            "loVel":    "0",
+            "hiVel":    "127",
+            "volume":   "1.0",
+        }
+        if shot.loop_start is not None:
+            sample_attrs["loopStart"] = str(shot.loop_start)
+            sample_attrs["loopEnd"]   = str(shot.loop_end)
+            sample_attrs["loopCrossfade"] = "512"
+        SubElement(group, "sample", **sample_attrs)
 
     indent(root, space="  ")
     xml_bytes = tostring(root, encoding="unicode", xml_declaration=False)

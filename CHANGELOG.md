@@ -8,6 +8,23 @@ All notable changes to kitCreator. Entries are grouped by feature area, not by i
 
 ---
 
+## 2026-05-20 — ADSR Envelope Estimation + Loop Point Detection
+
+### Added
+- `extract/adsr.py` — `estimate_adsr(audio, sr)` → `ADSRParams`; computes attack (time to peak RMS), decay (peak to sustain level), sustain (median RMS over central 60% of clip, as SFZ 0–100% scale), release (decay end to −40 dB below peak); 5 ms RMS hop
+- `extract/loop_finder.py` — `find_loop(audio, sr)` → `(loop_start, loop_end) | None`; autocorrelation in the middle-half steady-state region; rejects fast-decaying signals (<15% sustain fraction); aligns both endpoints to nearest zero crossing; `None` for drums, guitar, plucked bass
+- `PitchedShot` gains six optional fields: `ampeg_attack`, `ampeg_decay`, `ampeg_sustain`, `ampeg_release`, `loop_start`, `loop_end` (all default `None`)
+- `extract/pitched_slicer._fill_range` now calls both estimators for every zone after writing the WAV
+- `package/sfz_writer.write_pitched_sfz` emits `ampeg_*` and `loop_mode=loop_continuous loop_start loop_end` per region when set
+- `package/decentsampler_writer.write_pitched_dspreset` emits median ADSR on `<group>` and per-sample `loopStart`/`loopEnd`/`loopCrossfade` when set
+
+### Notes
+- `_PITCHER_VERSION` and `_BASIC_PITCH_VERSION` bumped to 1.1 — old cached `PitchedShot` objects without ADSR fields are busted
+- Loop detection intentionally skips drum/plucked samples; autocorrelation peak < 0.3 → no loop
+- DecentSampler ADSR is per-group (not per-sample); median across all zones is used
+
+---
+
 ## 2026-05-20 — DeepFilterNet Post-Separation Denoising
 
 ### Added

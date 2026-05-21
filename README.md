@@ -26,27 +26,35 @@ kitforge build --song mysong.wav --instrument "lead synth" --out ~/Desktop/synth
 ### Drums pipeline
 
 1. **Demucs htdemucs_ft** — separates the song into vocals / drums / bass / other stems
-2. **LarsNet** — splits the drum stem into 5 clean sub-stems: kick, snare, hi-hat, toms, cymbals
-3. **Onset detection** — finds every hit in each sub-stem via librosa
-4. **Velocity-layered slicing** — sorts hits by pre-normalization energy, bins into up to 4 velocity layers, picks round-robins within each layer
-5. **SFZ + DecentSampler export** — hi-hat choke groups, velocity layers (`lovel/hivel`), round-robin sequencing
+2. **[`--quality high`] DeepFilterNet3** — denoises the drum stem to remove residual bleed before slicing
+3. **LarsNet** — splits the drum stem into 5 clean sub-stems: kick, snare, hi-hat, toms, cymbals
+4. **Onset detection** — finds every hit in each sub-stem via librosa
+5. **Velocity-layered slicing** — sorts hits by pre-normalization energy, bins into up to 4 velocity layers
+6. **CLAP round-robin selection** — picks up to 4 timbrally-diverse round-robins per layer via farthest-point sampling on LAION-CLAP embeddings (falls back to energy-spread without internet/weights)
+7. **SFZ + DecentSampler export** — hi-hat choke groups, velocity layers (`lovel/hivel`), round-robin sequencing
 
 ### Bass pipeline
 
 1. **Demucs htdemucs_ft** — isolates the bass stem
-2. **torchcrepe** — tracks f0 frame-by-frame on the first 90s of the stem
-3. **Note segmentation** — groups voiced frames into note events by pitch stability (±60 cents) and confidence threshold
-4. **Per-note slicing** — picks the longest occurrence of each detected MIDI pitch as the canonical sample
-5. **Voronoi zone fill** — assigns `lokey/hikey` boundaries between adjacent real samples; gaps > 6 semitones get pre-shifted via Rubber Band R3
-6. **SFZ + DecentSampler export** — `pitch_keycenter` per zone
+2. **[`--quality high`] DeepFilterNet3** — denoises the stem before f0 tracking
+3. **torchcrepe** — tracks f0 frame-by-frame on the first 90s of the stem
+4. **Note segmentation** — groups voiced frames into note events by pitch stability (±60 cents) and confidence threshold
+5. **CLAP canonical selection** — collects all occurrences of each MIDI pitch; picks the medoid (most timbrally central) via LAION-CLAP embeddings
+6. **Voronoi zone fill** — assigns `lokey/hikey` boundaries between adjacent real samples; gaps > 6 semitones get pre-shifted via Rubber Band R3
+7. **ADSR estimation** — computes attack/decay/sustain/release per zone from the 5 ms RMS envelope
+8. **Loop point detection** — autocorrelation on the steady-state region; zero-crossing-aligned loop start/end for sustained samples
+9. **SFZ + DecentSampler export** — `pitch_keycenter` per zone, per-region `ampeg_*` and `loop_mode=loop_continuous`
 
 ### Guitar / Piano / Synth pipeline
 
 1. **Demucs** — guitar/piano use `htdemucs_6s` (6-stem, dedicated stems); synth uses `htdemucs_ft` "other" stem
-2. **Basic Pitch** — Spotify's polyphonic transcription model; converts the stem to MIDI note events
-3. **Per-note slicing** — picks longest occurrence of each MIDI pitch as canonical sample
-4. **Voronoi zone fill** — same as bass; Rubber Band R3 pre-shift for gaps > 6 semitones
-5. **SFZ + DecentSampler export** — `pitch_keycenter` per zone
+2. **[`--quality high`] Banquet** — query-conditioned separation using the htdemucs stem as a 10-second reference; replaces the htdemucs stem with a cleaner extraction from the full mix
+3. **[`--quality high`] DeepFilterNet3** — denoises the (Banquet-refined) stem before transcription
+4. **Basic Pitch** — Spotify's polyphonic transcription model; converts the stem to MIDI note events
+5. **CLAP canonical selection** — same as bass: medoid across all occurrences of each MIDI pitch
+6. **Voronoi zone fill** — same as bass; Rubber Band R3 pre-shift for gaps > 6 semitones
+7. **ADSR estimation + loop point detection** — same as bass
+8. **SFZ + DecentSampler export** — `pitch_keycenter` per zone, per-region ADSR and loop opcodes
 
 ### Output structure
 
@@ -127,8 +135,11 @@ kitforge build --song song.wav --instrument guitar --out ~/Desktop/guitar_kit
 kitforge build --song song.wav --instrument piano --range C2-C7 --out ~/Desktop/piano_kit
 kitforge build --song song.wav --instrument "lead synth" --out ~/Desktop/synth_kit
 
+# High-quality mode: Banquet separation + DeepFilterNet denoising + CLAP clustering
+kitforge build --song song.wav --instrument piano --quality high --out ~/Desktop/piano_kit
+
 # Flags
---quality fast|default|high    # fast = htdemucs; default = htdemucs_ft; high = htdemucs_ft + Banquet (see below)
+--quality fast|default|high    # fast = htdemucs; default = htdemucs_ft; high = above + Banquet + DeepFilterNet
 --debug                        # extra diagnostics and intermediate WAV locations
 --config kitforge.toml         # load settings from a TOML file
 ```
@@ -162,28 +173,40 @@ Done in 12.3s — 80 samples
 song.wav
   │
   ▼
-demucs_runner.py       htdemucs_ft → drums.wav, bass.wav, vocals.wav, other.wav
+demucs_runner.py         htdemucs_ft → drums.wav, bass.wav, vocals.wav, other.wav
+  │                      htdemucs_6s → + guitar.wav, piano.wav  (guitar/piano only)
   │
   ├─▶ (drums)
+  │   denoise.py*          DeepFilterNet3 stem cleanup          [--quality high]
   │   larsnet_runner.py    LarsNet → kick / snare / hihat / toms / cymbals stems
   │   slicer.py            onset detect → velocity-layered one-shots → normalize
+  │   clap_embed.py        LAION-CLAP embeddings per hit
+  │   cluster.py           farthest-point sampling → diverse round-robins per layer
   │   sfz_writer.py        kit.sfz  (vel layers, round-robins, hihat choke)
   │   decentsampler_writer.py  kit.dspreset
   │
   ├─▶ (bass)
+  │   denoise.py*          DeepFilterNet3 stem cleanup          [--quality high]
   │   crepe_mono.py        torchcrepe f0 → (times, f0_hz, periodicity)
-  │   pitched_slicer.py    note segmentation → per-note slices → Voronoi zone fill
-  │   rubberband_wrapper.py  Rubber Band R3 pre-shift for gaps > 6 semitones
-  │   sfz_writer.py        kit.sfz  (lokey/hikey/pitch_keycenter per zone)
+  │   pitched_slicer.py    note segmentation → collect all occurrences per pitch
+  │   clap_embed.py        LAION-CLAP embeddings per occurrence
+  │   cluster.py           pick_medoid → canonical sample per MIDI note
+  │   pitched_slicer.py    Voronoi zone fill → Rubber Band R3 pre-shift (gap > 6 st)
+  │   adsr.py              RMS-envelope ADSR estimation per zone
+  │   loop_finder.py       autocorrelation loop points (sustained samples only)
+  │   sfz_writer.py        kit.sfz  (lokey/hikey/pitch_keycenter, ampeg_*, loop)
   │   decentsampler_writer.py  kit.dspreset
   │
   └─▶ (guitar / piano / synth)
-      demucs_runner.py     htdemucs_6s (guitar/piano) or htdemucs_ft other stem (synth)
-      basic_pitch_runner.py  Basic Pitch polyphonic transcription → note events
-      pitched_slicer.py    per-note slices → Voronoi zone fill (same as bass)
-      rubberband_wrapper.py  Rubber Band R3 pre-shift for gaps > 6 semitones
+      query_separator.py*  Banquet query separation             [--quality high]
+      denoise.py*          DeepFilterNet3 stem cleanup          [--quality high]
+      basic_pitch_runner.py  Basic Pitch polyphonic → note events
+      pitched_slicer.py    collect occurrences → CLAP medoid → Voronoi fill
+      adsr.py + loop_finder.py  envelope + loop points per zone
       sfz_writer.py        kit.sfz
       decentsampler_writer.py  kit.dspreset
+
+* only when --quality high
 ```
 
 **Module map:**
@@ -215,21 +238,25 @@ demucs_runner.py       htdemucs_ft → drums.wav, bass.wav, vocals.wav, other.wa
 
 ## Roadmap
 
-### Optional: Banquet high-quality separation
+### `--quality high` stack
 
-For better guitar/piano/synth isolation (htdemucs_6s piano quality is flagged as poor in Meta's own README), enable Banquet:
+`--quality high` activates three optional stages that trade wall time for better output:
+
+| Stage | What it does | Runtime (CPU) |
+|-------|-------------|---------------|
+| **Banquet** (pitched only) | Query-conditioned separation; htdemucs stem used as 10-second reference to re-extract from the full mix | ~35 min/song |
+| **DeepFilterNet3** (all instruments) | Neural noise suppression on the target stem before slicing | ~real-time |
+| **CLAP round-robins** (drums) | Timbral farthest-point sampling instead of energy-spread; ~600 MB model download on first use | fast after download |
 
 ```bash
-# One-time setup: ~30 MB repo clone + ~645 MB model weights
-kitforge setup-banquet
+# One-time setup for Banquet (guitar/piano/synth):
+kitforge setup-banquet    # ~30 MB repo + ~645 MB weights
 
-# Then use --quality high to activate it
-kitforge build --song song.wav --instrument piano --range C2-C7 --out ~/Desktop/piano_kit --quality high
+# Run with all enhancements:
+kitforge build --song song.wav --instrument piano --quality high --out ~/Desktop/piano_kit
 ```
 
-**Runtime:** CPU ~35 min/song. CUDA GPU ~5 min. gated behind `--quality high` only; `default` and `fast` are unchanged.
-
-Banquet is a query-based separator — it takes the rough htdemucs stem as a 10-second reference and uses it to extract that instrument directly from the full mix. On piano and guitar specifically, Banquet outperforms htdemucs_6s (per the original paper).
+`default` and `fast` are unchanged — the extra models are never loaded.
 
 ### Phase 2 — DAC-token language model
 
@@ -246,6 +273,9 @@ for large intervals. See `synth/dac_lm.py`.
 - **torchcrepe capped at 90s** — f0 tracking runs on the first 90s of the bass stem to avoid OOM. Pitches that only appear late in the song are missed
 - **torchaudio + torchcodec** — demucs stem writing uses soundfile directly to avoid MPS incompatibility with torchcodec's audio encoder
 - **LarsNet tqdm output** — LarsNet prints its own progress bars to stdout; these come from inside the library and can't be suppressed without patching
+- **CLAP model download (~600 MB)** — downloads from HuggingFace on the first kit build that needs CLAP clustering; subsequent runs use the cached weights
+- **deepfilternet 0.5.6 + torchaudio 2.x** — the package uses removed APIs; `denoise.py` patches them at import time. If deepfilternet releases a fix, the patch is safe to remove
+- **Banquet CPU runtime** — ~35 min/song on CPU; plan for an overnight run or use a CUDA GPU. Not needed for default quality
 
 ---
 
@@ -265,3 +295,9 @@ for large intervals. See `synth/dac_lm.py`.
 | Cache key | (file_sha256, model, version, params, out_dir) | Out dir must be in key — absolute paths in cached OneShots break across runs |
 | Package manager | uv | Fast, Python-version-aware, no conda |
 | LarsNet config | abs-path config_abs.yaml written at runtime | config.yaml uses relative paths, breaks when cwd ≠ larsnet dir |
+| Canonical sample selection | CLAP medoid (all occurrences) | "Pick longest" misses quieter but timbrally cleaner occurrences; CLAP centroid is more perceptually representative |
+| Round-robin diversity | Farthest-point sampling on CLAP | HDBSCAN degenerates on small N (5–20 hits/bucket); farthest-point directly maximises pairwise cosine distance |
+| Denoising compat | monkey-patch torchaudio.backend.common before df.* import | deepfilternet 0.5.6 uses APIs removed in torchaudio 2.x; patching avoids pinning torchaudio |
+| ADSR source | 5 ms RMS hops on the normalized clip | Spectral-centroid approaches miss the envelope shape for non-harmonic sounds; RMS is instrument-agnostic |
+| Loop points | Autocorrelation on middle-half + zero-crossing alignment | Period detection on the steady-state region avoids attack transient bias; zero-crossing prevents clicks |
+| DS ADSR granularity | Median across zones on `<group>` | DecentSampler ADSR is per-group, not per-sample; SFZ gets full per-region ADSR |

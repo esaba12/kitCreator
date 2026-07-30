@@ -2,6 +2,10 @@
 
 Turn any song into a playable multi-octave sampler kit. Give it an audio file, tell it what instrument you want, get back an SFZ + DecentSampler preset ready to load in any sampler.
 
+![kitCreator demo](docs/media/kitcreator-demo.gif)
+
+▶ [Watch with sound](https://ethansaba.com/videos/kitcreator.mp4) — "Any song becomes a playable kit."
+
 Built by Ethan Saba.
 
 ---
@@ -33,28 +37,17 @@ kitforge build --song mysong.wav --instrument "lead synth" --out ~/Desktop/synth
 6. **CLAP round-robin selection** — picks up to 4 timbrally-diverse round-robins per layer via farthest-point sampling on LAION-CLAP embeddings (falls back to energy-spread without internet/weights)
 7. **SFZ + DecentSampler export** — hi-hat choke groups, velocity layers (`lovel/hivel`), round-robin sequencing
 
-### Bass pipeline
+### Bass / Guitar / Piano / Synth pipeline
 
-1. **Demucs htdemucs_ft** — isolates the bass stem
-2. **[`--quality high`] DeepFilterNet3** — denoises the stem before f0 tracking
-3. **torchcrepe** — tracks f0 frame-by-frame on the first 90s of the stem
-4. **Note segmentation** — groups voiced frames into note events by pitch stability (±60 cents) and confidence threshold
-5. **CLAP canonical selection** — collects all occurrences of each MIDI pitch; picks the medoid (most timbrally central) via LAION-CLAP embeddings
-6. **Voronoi zone fill** — assigns `lokey/hikey` boundaries between adjacent real samples; gaps > 6 semitones get pre-shifted via Rubber Band R3
-7. **ADSR estimation** — computes attack/decay/sustain/release per zone from the 5 ms RMS envelope
-8. **Loop point detection** — autocorrelation on the steady-state region; zero-crossing-aligned loop start/end for sustained samples
-9. **SFZ + DecentSampler export** — `pitch_keycenter` per zone, per-region `ampeg_*` and `loop_mode=loop_continuous`
-
-### Guitar / Piano / Synth pipeline
-
-1. **Demucs** — guitar/piano use `htdemucs_6s` (6-stem, dedicated stems); synth uses `htdemucs_ft` "other" stem
-2. **[`--quality high`] Banquet** — query-conditioned separation using the htdemucs stem as a 10-second reference; replaces the htdemucs stem with a cleaner extraction from the full mix
-3. **[`--quality high`] DeepFilterNet3** — denoises the (Banquet-refined) stem before transcription
-4. **Basic Pitch** — Spotify's polyphonic transcription model; converts the stem to MIDI note events
-5. **CLAP canonical selection** — same as bass: medoid across all occurrences of each MIDI pitch
-6. **Voronoi zone fill** — same as bass; Rubber Band R3 pre-shift for gaps > 6 semitones
-7. **ADSR estimation + loop point detection** — same as bass
-8. **SFZ + DecentSampler export** — `pitch_keycenter` per zone, per-region ADSR and loop opcodes
+1. **BS-RoFormer vocal pre-removal** — `python-audio-separator` with the SOTA `model_bs_roformer_ep_317` checkpoint (17.0 dB instrumental SDR); strips vocals from the mix before htdemucs sees it, so the "other" stem doesn't inherit residual vocal bleed. Runs on Apple Silicon MPS + CoreML, ~3 min/song.
+2. **Demucs** — guitar/piano use `htdemucs_6s` (6-stem, dedicated stems); synth uses `htdemucs_ft` "other" stem. Now fed the BS-RoFormer instrumental, not the raw mix.
+3. **[`--quality high`] Banquet** — query-conditioned separation. Query is auto-picked as the highest-RMS 10 s window of the rough htdemucs stem (or user-specified via `--query MM:SS-MM:SS`). Banquet runs on the BS-RoFormer instrumental, not the raw mix.
+4. **[`--quality high`] DeepFilterNet3** — denoises the (Banquet-refined) stem before transcription
+5. **Basic Pitch / torchcrepe** — polyphonic transcription for guitar/piano/synth, monophonic f0 for bass
+6. **CLAP canonical selection** — medoid across all occurrences of each MIDI pitch
+7. **Voronoi zone fill** — Rubber Band R3 pre-shift for gaps > 6 semitones
+8. **ADSR estimation + loop point detection** — RMS-envelope ADSR per zone, autocorrelation-based loop points on sustained samples
+9. **SFZ + DecentSampler export** — `pitch_keycenter` per zone, per-region ADSR and loop opcodes
 
 ### Output structure
 
@@ -138,8 +131,16 @@ kitforge build --song song.wav --instrument "lead synth" --out ~/Desktop/synth_k
 # High-quality mode: Banquet separation + DeepFilterNet denoising + CLAP clustering
 kitforge build --song song.wav --instrument piano --quality high --out ~/Desktop/piano_kit
 
+# Pin Banquet's query to a specific 10s window of the song (--quality high only)
+kitforge build --song song.wav --instrument synth --quality high --query 0:44-0:54 --out ~/Desktop/synth_kit
+
+# Export the kit to a Roland MC-101 SD card (drums: per-pad WAVs + SETUP.txt; pitched: single root sample)
+kitforge build --song song.wav --instrument drums --out ~/Desktop/kit --mc101 /Volumes/MC-101
+
 # Flags
---quality fast|default|high    # fast = htdemucs; default = htdemucs_ft; high = above + Banquet + DeepFilterNet
+--quality fast|default|high    # fast = htdemucs; default = + BS-RoFormer cascade for pitched; high = + Banquet + DeepFilterNet
+--query MM:SS-MM:SS            # (--quality high) override Banquet's auto query window with an exact timestamp
+--mc101 <path>                 # also copy the kit to a Roland MC-101 SD card with a SETUP.txt
 --debug                        # extra diagnostics and intermediate WAV locations
 --config kitforge.toml         # load settings from a TOML file
 ```
@@ -172,6 +173,10 @@ Done in 12.3s — 80 samples
 ```
 song.wav
   │
+  ├─ (pitched only) ─▶
+  │   roformer_runner.py   BS-RoFormer → vocals + instrumental
+  │                        (instrumental fed to demucs instead of raw mix)
+  │
   ▼
 demucs_runner.py         htdemucs_ft → drums.wav, bass.wav, vocals.wav, other.wav
   │                      htdemucs_6s → + guitar.wav, piano.wav  (guitar/piano only)
@@ -199,12 +204,18 @@ demucs_runner.py         htdemucs_ft → drums.wav, bass.wav, vocals.wav, other.
   │
   └─▶ (guitar / piano / synth)
       query_separator.py*  Banquet query separation             [--quality high]
+                           (input = BS-RoFormer instrumental, not raw mix)
+                           (query window = highest-RMS 10 s of rough stem, or --query)
       denoise.py*          DeepFilterNet3 stem cleanup          [--quality high]
       basic_pitch_runner.py  Basic Pitch polyphonic → note events
       pitched_slicer.py    collect occurrences → CLAP medoid → Voronoi fill
       adsr.py + loop_finder.py  envelope + loop points per zone
       sfz_writer.py        kit.sfz
       decentsampler_writer.py  kit.dspreset
+
+(after the kit is built, --mc101 <path> copies it to a Roland MC-101 SD card
+ via package/mc101_writer.py — drums become per-pad PCM_16 WAVs + SETUP.txt;
+ pitched exports a single root sample for the MC-101 Tone track's chromatic transpose)
 
 * only when --quality high
 ```
@@ -215,7 +226,7 @@ demucs_runner.py         htdemucs_ft → drums.wav, bass.wav, vocals.wav, other.
 |--------|--------|------|
 | `separation/demucs_runner.py` | ✅ Working | htdemucs_ft / htdemucs_6s separation, MPS-accelerated |
 | `separation/larsnet_runner.py` | ✅ Working | LarsNet 5-class drum sub-stem separation |
-| `separation/roformer_runner.py` | 🔲 Stub | BS-RoFormer high-quality mode |
+| `separation/roformer_runner.py` | ✅ Working | BS-RoFormer vocal pre-removal cascade (pitched instruments, all qualities) |
 | `separation/query_separator.py` | ✅ Working | Banquet query-based separation (optional, `--quality high`) |
 | `transcribe/crepe_mono.py` | ✅ Working | torchcrepe monophonic f0 tracking for bass/lead |
 | `transcribe/basic_pitch_runner.py` | ✅ Working | Basic Pitch polyphonic transcription for guitar/piano/synth |
@@ -230,6 +241,7 @@ demucs_runner.py         htdemucs_ft → drums.wav, bass.wav, vocals.wav, other.
 | `timbre/clap_embed.py` | ✅ Working | LAION-CLAP 512-d timbre embeddings (lazy singleton, 600 MB download on first use) |
 | `package/sfz_writer.py` | ✅ Working | SFZ: drums (vel layers, RR, choke) + pitched (zones) |
 | `package/decentsampler_writer.py` | ✅ Working | DecentSampler XML: same structure |
+| `package/mc101_writer.py` | ✅ Working | Roland MC-101 SD card export (drums: per-pad PCM_16 + SETUP.txt; pitched: single root sample) |
 | `package/ableton_writer.py` | 🔲 Stub | Ableton .adg drum rack export (Phase 2) |
 | `cache.py` | ✅ Working | Content-addressed diskcache, wired into pipeline |
 | `synth/dac_lm.py` | 🔲 Stub | DAC-token LM for neural pitch fill (Phase 2) |
@@ -240,11 +252,11 @@ demucs_runner.py         htdemucs_ft → drums.wav, bass.wav, vocals.wav, other.
 
 ### `--quality high` stack
 
-`--quality high` activates three optional stages that trade wall time for better output:
+**Default quality** for pitched instruments now runs a BS-RoFormer → htdemucs cascade automatically (no flag). `--quality high` adds three more optional stages on top:
 
 | Stage | What it does | Runtime (CPU) |
 |-------|-------------|---------------|
-| **Banquet** (pitched only) | Query-conditioned separation; htdemucs stem used as 10-second reference to re-extract from the full mix | ~35 min/song |
+| **Banquet** (pitched only) | Query-conditioned separation. Runs on the BS-RoFormer instrumental (not the raw mix), with the auto-picked highest-RMS 10 s window of the rough stem as query — or `--query MM:SS-MM:SS` for manual control | ~15–35 min/song |
 | **DeepFilterNet3** (all instruments) | Neural noise suppression on the target stem before slicing | ~real-time |
 | **CLAP round-robins** (drums) | Timbral farthest-point sampling instead of energy-spread; ~600 MB model download on first use | fast after download |
 
@@ -275,7 +287,10 @@ for large intervals. See `synth/dac_lm.py`.
 - **LarsNet tqdm output** — LarsNet prints its own progress bars to stdout; these come from inside the library and can't be suppressed without patching
 - **CLAP model download (~600 MB)** — downloads from HuggingFace on the first kit build that needs CLAP clustering; subsequent runs use the cached weights
 - **deepfilternet 0.5.6 + torchaudio 2.x** — the package uses removed APIs; `denoise.py` patches them at import time. If deepfilternet releases a fix, the patch is safe to remove
-- **Banquet CPU runtime** — ~35 min/song on CPU; plan for an overnight run or use a CUDA GPU. Not needed for default quality
+- **Banquet CPU runtime** — ~15–35 min/song on CPU; plan for an overnight run or use a CUDA GPU. Not needed for default quality
+- **BS-RoFormer adds ~3 min** to pitched-instrument runs at any quality. Stems are cached by content hash, so it only runs once per song
+- **Banquet timbral limits** — Banquet maps the user's instrument name to one of a fixed set of stems (`synth_lead`, `synth_pad`, `electric_piano`, etc.). Hybrid timbres (e.g. a synth + Rhodes layer) blend toward the closest prototype; absolute exact-timbre reconstruction will need Phase 2's neural fill
+- **MC-101 SD card auto-unmount** — long Banquet runs sometimes outlive the SD card's USB connection. Replug after the kit finishes and re-run `kitforge build … --mc101 …` — the pipeline is fully cached, so the export takes <1 s
 
 ---
 
@@ -301,3 +316,8 @@ for large intervals. See `synth/dac_lm.py`.
 | ADSR source | 5 ms RMS hops on the normalized clip | Spectral-centroid approaches miss the envelope shape for non-harmonic sounds; RMS is instrument-agnostic |
 | Loop points | Autocorrelation on middle-half + zero-crossing alignment | Period detection on the steady-state region avoids attack transient bias; zero-crossing prevents clicks |
 | DS ADSR granularity | Median across zones on `<group>` | DecentSampler ADSR is per-group, not per-sample; SFZ gets full per-region ADSR |
+| Pitched separation cascade | BS-RoFormer (vocal pre-removal) → htdemucs (everything else) | htdemucs's vocal isolation (~10.5 dB) leaks into "other"; pre-stripping with 17 dB BS-RoFormer makes "other" a true non-vocal residual |
+| Banquet query selection | Highest-RMS 10 s window of the rough htdemucs stem (auto), overridable via `--query MM:SS-MM:SS` | First-10 s window misses sparse intros and can lock Banquet onto intro percussion — auto-RMS finds the moment the target instrument is actually present |
+| Banquet input audio | The BS-RoFormer instrumental, not the raw mix | When Banquet sees vocals in the input, it can extract vocal-bleed content matching the query timbre; the cascade input keeps it on instrument-only |
+| MC-101 drum format | Re-encode WAVs as PCM_16 on export | MC-101 firmware rejects float32 WAVs; slicer writes float32 by default so we re-encode at the export boundary |
+| MC-101 SD card copy | `shutil.copyfile` (content only), not `copy2` | FAT32 returns `EINVAL` on `chflags`, breaking `copystat`; `copyfile` skips metadata |

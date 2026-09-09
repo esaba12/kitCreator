@@ -8,6 +8,42 @@ All notable changes to kitCreator. Entries are grouped by feature area, not by i
 
 ---
 
+## 2026-05-21 — Banquet Query Fixes: Clean Input + Smart Window + `--query`
+
+### Fixed
+- Banquet was running on the original song mix (vocals + everything) and using the first 10 s of the rough htdemucs stem as its query — for sparse intros this locked Banquet onto percussion/claps, producing short transient-only output that didn't sound like the target instrument
+- Banquet now runs on the BS-RoFormer instrumental (vocals stripped) so it can't accidentally extract vocal content
+- Query window now auto-picks the highest-RMS 10 s slice of the rough stem instead of the first 10 s, skipping sparse intros
+
+### Added
+- `--query MM:SS-MM:SS` CLI flag — extracts that window from the ORIGINAL song as Banquet's query when the user knows exactly where the target instrument peaks; overrides the auto-RMS heuristic
+- `_best_query_window(data, sr)` helper in `pipeline.py` — 1 s stride, picks loudest 10 s by RMS
+- `build_kit(..., query_window=None)` parameter
+
+### Notes
+- `_BANQUET_VERSION` bumped 1.0 → 1.1 — busts old refined-stem caches
+- Cache key now distinguishes `banquet_<instr>_auto` vs `banquet_<instr>_user` so changing the query timestamp re-runs separation without wiping the auto cache
+
+---
+
+## 2026-05-20 — BS-RoFormer Cascade for Pitched Instruments
+
+### Added
+- `separation/roformer_runner.py` — `is_available()`, `separate_vocals(audio_path, out_dir)`; wraps `python-audio-separator` with `model_bs_roformer_ep_317_sdr_12.9755.ckpt` (vocals SDR 12.9, instrumental SDR 17.0); singleton model, MPS / CoreML accelerated on Apple Silicon
+- `pipeline.py` — for bass, guitar, piano, synth: a Stage 1a vocal-pre-removal pass runs BS-RoFormer on the raw mix, then htdemucs sees the vocal-stripped instrumental. Drums skip the cascade.
+- Stems cache sentinel now encodes `roformer=<bool>/6s=<bool>` so old single-stage caches bust automatically when the cascade is enabled
+
+### Why
+- htdemucs "other" stem is a catch-all and inherits residual vocals from htdemucs's ~10.5 dB vocal isolation; on vocal-heavy tracks Basic Pitch then transcribes vocal melodies as synth notes
+- BS-RoFormer at 17 dB instrumental SDR removes ~99% of vocal content before htdemucs runs, so "other" is a true non-drums/bass/vocals residual
+
+### Notes
+- `_PITCHER_VERSION` and `_BASIC_PITCH_VERSION` bumped to 1.2 — old cached `PitchedShot` lists bust
+- ~2–3 min added per song on M-series MPS; runs once and is cached
+- On failure (network, OOM, etc.) silently falls back to plain htdemucs on the raw mix
+
+---
+
 ## 2026-05-20 — Roland MC-101 Export (`--mc101`)
 
 ### Added

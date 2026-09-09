@@ -48,6 +48,7 @@ def build(
     debug: bool = typer.Option(False, "--debug/--no-debug", help="Write intermediate WAVs and extra diagnostics"),
     config_file: str = typer.Option(None, "--config", help="Path to TOML config file"),
     mc101: str = typer.Option(None, "--mc101", help="Path to MC-101 SD card root (e.g. /Volumes/MC101)"),
+    query: str = typer.Option(None, "--query", help="Banquet query window in the song, e.g. 0:34-0:44 (--quality high only)"),
 ) -> None:
     """Build a sampler kit from a song."""
     from kitforge.config import load_config
@@ -85,6 +86,11 @@ def build(
         + f" quality=[cyan]{quality}[/cyan]"
     )
 
+    query_window = _parse_query_window(query) if query else None
+    if query and query_window is None:
+        console.print(f"[red]Invalid --query '{query}'. Use MM:SS-MM:SS, e.g. 0:34-0:44[/red]")
+        raise typer.Exit(1)
+
     t0 = time.perf_counter()
     result = build_kit(
         song_path=song_path,
@@ -92,6 +98,7 @@ def build(
         note_range=note_range,
         out_path=Path(out),
         config=cfg,
+        query_window=query_window,
     )
     elapsed = time.perf_counter() - t0
 
@@ -114,6 +121,20 @@ def build(
 
     if mc101:
         _export_mc101(mc101, song_path, instrument, result)
+
+
+def _parse_query_window(s: str) -> tuple[float, float] | None:
+    """Parse 'MM:SS-MM:SS' or 'SS-SS' into (start_s, end_s)."""
+    import re
+    m = re.fullmatch(r"\s*(\d+:)?(\d+(?:\.\d+)?)\s*-\s*(\d+:)?(\d+(?:\.\d+)?)\s*", s)
+    if not m:
+        return None
+    def _to_sec(mins: str | None, secs: str) -> float:
+        mins_f = float(mins[:-1]) if mins else 0.0
+        return mins_f * 60.0 + float(secs)
+    start = _to_sec(m.group(1), m.group(2))
+    end   = _to_sec(m.group(3), m.group(4))
+    return (start, end) if end > start else None
 
 
 def _export_mc101(mc101_str: str, song_path: Path, instrument: str, result) -> None:

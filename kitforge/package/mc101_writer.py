@@ -83,9 +83,9 @@ def export_pitched(shots: list[PitchedShot], instrument: str, kit_name: str, sd_
     dst_name = f"{instrument.replace(' ', '_')}_root.wav"
     dst = folder / dst_name
 
-    # Pitched WAVs are already PCM_24 — copy directly
+    # Pitched WAVs are already PCM_24 — copy content only (FAT32 rejects copystat)
     import shutil
-    shutil.copy2(root_shot.path, dst)
+    shutil.copyfile(root_shot.path, dst)
 
     root_note_name = _midi_to_note(root_shot.midi_note)
 

@@ -27,10 +27,11 @@ _DEFAULT_RANGES: dict[str, tuple[int, int]] = {
 
 # Bump these when the corresponding stage logic changes to bust cached results
 _SLICER_VERSION = "1.1"
-_PITCHER_VERSION = "1.1"      # PitchedShot gained ADSR + loop fields
-_BASIC_PITCH_VERSION = "1.1"  # PitchedShot gained ADSR + loop fields
-_BANQUET_VERSION = "1.0"
+_PITCHER_VERSION = "1.2"      # BS-RoFormer cascade for pitched instruments
+_BASIC_PITCH_VERSION = "1.2"  # BS-RoFormer cascade for pitched instruments
+_BANQUET_VERSION = "1.1"  # smart query window + clean instrumental input
 _DENOISE_VERSION = "1.0"
+_ROFORMER_VERSION = "1.0"
 
 
 @dataclass
@@ -49,9 +50,10 @@ def _file_sha256(path: Path) -> str:
     return h.hexdigest()
 
 
-def _stems_cached(stems_dir: Path, song_hash: str, expected: list[str]) -> bool:
+def _stems_cached(stems_dir: Path, song_hash: str, expected: list[str], pipeline_tag: str) -> bool:
     sentinel = stems_dir / ".song_hash"
-    if not sentinel.exists() or sentinel.read_text().strip() != song_hash:
+    expected_sentinel = f"{song_hash}\t{pipeline_tag}"
+    if not sentinel.exists() or sentinel.read_text().strip() != expected_sentinel:
         return False
     return all((stems_dir / f"{s}.wav").exists() for s in expected)
 
@@ -62,6 +64,7 @@ def build_kit(
     note_range: str,
     out_path: Path,
     config: KitForgeConfig,
+    query_window: tuple[float, float] | None = None,
 ) -> PipelineResult:
     """Orchestrate the full separation → extract → package pipeline."""
     from kitforge.cache import StageCache, cache_key
@@ -72,6 +75,9 @@ def build_kit(
 
     # ── Stage 1: Source separation ──────────────────────────────────────────
     song_hash = _file_sha256(song_path)
+    is_pitched_nondrum = (
+        instrument_lower in _BASS_INSTRUMENTS or instrument_lower in _PITCHED_INSTRUMENTS
+    )
     six_stem = instrument_lower in _GUITAR_INSTRUMENTS | _PIANO_INSTRUMENTS
     stems_dir = config.cache_dir / "stems" / song_path.stem
 
@@ -80,20 +86,39 @@ def build_kit(
     else:
         expected_stems = ["drums", "bass", "vocals", "other"]
 
+    # ── Stage 1a (pitched only): BS-RoFormer vocal pre-removal ──────────────
+    # Replaces the raw mix with a vocal-stripped instrumental before htdemucs.
+    # BS-RoFormer hits ~17 dB instrumental SDR vs htdemucs's ~14 dB, which
+    # massively reduces vocal bleed in the "other" stem.
+    htdemucs_input = song_path
+    if is_pitched_nondrum:
+        from kitforge.separation import roformer_runner
+        if roformer_runner.is_available():
+            t1a = time.perf_counter()
+            console.print("[bold blue]Stage 1a:[/bold blue] BS-RoFormer vocal removal...")
+            try:
+                roformer_out = roformer_runner.separate_vocals(song_path, stems_dir)
+                htdemucs_input = roformer_out["instrumental"]
+                console.print(f"  [dim]roformer: {time.perf_counter()-t1a:.1f}s[/dim]")
+            except Exception as e:
+                console.print(f"  [yellow]BS-RoFormer failed ({e}); falling back to raw mix[/yellow]")
+
+    pipeline_tag = f"roformer={htdemucs_input != song_path}/6s={six_stem}"
+
     t1 = time.perf_counter()
-    if _stems_cached(stems_dir, song_hash, expected_stems):
+    if _stems_cached(stems_dir, song_hash, expected_stems, pipeline_tag):
         console.print("[bold blue]Stage 1/3:[/bold blue] Stems cached — skipping separation")
         stem_paths = {s: stems_dir / f"{s}.wav" for s in expected_stems}
     else:
         console.print("[bold blue]Stage 1/3:[/bold blue] Separating stems...")
         from kitforge.separation.demucs_runner import separate
         stem_paths = separate(
-            audio_path=song_path,
+            audio_path=htdemucs_input,
             out_dir=stems_dir,
             quality=config.separator_quality,
             six_stem=six_stem,
         )
-        (stems_dir / ".song_hash").write_text(song_hash)
+        (stems_dir / ".song_hash").write_text(f"{song_hash}\t{pipeline_tag}")
     console.print(f"  [dim]separation: {time.perf_counter()-t1:.1f}s[/dim]")
 
     # ── Stage 2: Extract samples ─────────────────────────────────────────────
@@ -214,8 +239,14 @@ def build_kit(
         from kitforge.separation import query_separator
         if config.separator_quality == "high" and query_separator.is_available():
             stem_wav = _banquet_refine(
-                song_path, stem_wav, instrument_lower, stems_dir,
-                stage_cache, config.debug,
+                mixture_path=htdemucs_input,  # vocal-stripped instrumental
+                rough_stem=stem_wav,
+                song_path=song_path,
+                query_window=query_window,
+                instrument=instrument_lower,
+                stems_dir=stems_dir,
+                stage_cache=stage_cache,
+                debug=config.debug,
             )
             if config.debug:
                 console.print(f"  [dim]banquet: using refined stem {stem_wav.name}[/dim]")
@@ -280,45 +311,65 @@ def build_kit(
 # ── helpers ──────────────────────────────────────────────────────────────────
 
 def _banquet_refine(
-    song_path: Path,
+    mixture_path: Path,
     rough_stem: Path,
+    song_path: Path,
+    query_window: tuple[float, float] | None,
     instrument: str,
     stems_dir: Path,
     stage_cache,
     debug: bool,
 ) -> Path:
     """
-    Run Banquet query separation on the original mix, using the htdemucs stem as query.
-    Returns the refined stem path (cached alongside demucs stems).
+    Run Banquet query separation on a vocal-stripped instrumental.
+
+    mixture_path:  the audio Banquet operates on (BS-RoFormer instrumental)
+    rough_stem:    the htdemucs stem used to auto-pick a query window
+    song_path:     the original mix (only used when query_window is given)
+    query_window:  (start_s, end_s) in the ORIGINAL song, or None to auto-pick
     """
     from kitforge.separation import query_separator
     from kitforge.cache import cache_key
 
-    # Cache key: song content + instrument + banquet version
-    ck = cache_key(song_path, f"banquet_{instrument}", _BANQUET_VERSION, {})
+    qtag = "user" if query_window else "auto"
+    ck = cache_key(mixture_path, f"banquet_{instrument}_{qtag}", _BANQUET_VERSION, {})
     refined_path = stems_dir / f"banquet_{instrument.replace(' ', '_')}.wav"
 
-    if refined_path.exists():
+    if refined_path.exists() and stage_cache.has(ck):
         return refined_path
 
-    # Extract 10-second query from the first 10s of the rough stem
     import soundfile as sf
     import numpy as np
 
-    data, sr = sf.read(str(rough_stem), always_2d=True)
-    query_samples = min(len(data), sr * 10)
-    query_clip = data[:query_samples]
     query_path = stems_dir / f"_query_{instrument.replace(' ', '_')}.wav"
+
+    if query_window is not None:
+        # User-specified: clip from the ORIGINAL song so the target timbre is exact
+        data, sr = sf.read(str(song_path), always_2d=True)
+        s0 = max(0, int(query_window[0] * sr))
+        s1 = min(len(data), int(query_window[1] * sr))
+        query_clip = data[s0:s1]
+        if debug:
+            console.print(f"  [dim]banquet query: user {query_window[0]:.1f}-{query_window[1]:.1f}s from song[/dim]")
+    else:
+        # Auto-pick: highest-RMS 10s window of the rough stem (avoids sparse intros)
+        data, sr = sf.read(str(rough_stem), always_2d=True)
+        s0, s1 = _best_query_window(data, sr, win_s=10.0)
+        query_clip = data[s0:s1]
+        if debug:
+            console.print(f"  [dim]banquet query: auto {s0/sr:.1f}-{s1/sr:.1f}s from rough stem[/dim]")
+
     sf.write(str(query_path), query_clip, sr)
 
     console.print(f"  Running Banquet separation for {instrument}...")
     try:
         query_separator.separate(
-            audio_path=song_path,
+            audio_path=mixture_path,
             query_wav_path=query_path,
             out_path=refined_path,
             instrument=instrument,
         )
+        stage_cache.set(ck, str(refined_path))
     except ValueError as e:
         # Audio too short for Banquet — fall back to htdemucs stem
         if debug:
@@ -328,6 +379,25 @@ def _banquet_refine(
         query_path.unlink(missing_ok=True)
 
     return refined_path
+
+
+def _best_query_window(data, sr: int, win_s: float = 10.0) -> tuple[int, int]:
+    """Find the start/end sample indices of the highest-RMS win_s-second window."""
+    import numpy as np
+
+    mono = data.mean(axis=1) if data.ndim > 1 else data
+    win = int(win_s * sr)
+    if len(mono) <= win:
+        return 0, len(mono)
+
+    # Stride at 1s — cheap, plenty fine
+    hop = sr
+    rms_scores = []
+    for start in range(0, len(mono) - win + 1, hop):
+        chunk = mono[start:start + win]
+        rms_scores.append((np.sqrt(np.mean(chunk * chunk)), start))
+    _, best_start = max(rms_scores, key=lambda t: t[0])
+    return best_start, best_start + win
 
 
 def _denoise_stem(

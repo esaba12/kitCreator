@@ -5,6 +5,7 @@ Turn any song into a playable multi-octave sampler kit. Give it an audio file, t
 ![kitCreator demo](docs/media/kitcreator-demo.gif)
 
 ▶ [Watch with sound](https://ethansaba.com/videos/kitcreator.mp4) — "Any song becomes a playable kit."
+· **[Live demo](https://kitcreator-app.vercel.app/)**
 
 Built by Ethan Saba.
 

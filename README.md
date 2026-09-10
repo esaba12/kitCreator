@@ -253,3 +253,4 @@ shifting for large intervals. Scaffolding in `synth/dac_lm.py`.
 | [Module map](docs/module-map.md) | Every module, its status, and the full data flow |
 | [Decisions](docs/decisions.md) | Why things are the way they are |
 | [Known issues](docs/known-issues.md) | Gotchas and workarounds |
+| [Architecture report](docs/architecture-report.md) | The build report this project started from — prior-art survey, why the orchestration layer is the novel part, and the two-layer plan |

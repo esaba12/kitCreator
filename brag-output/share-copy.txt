@@ -1,1 +1,0 @@
-Built kitCreator: point it at any song and it separates the stems, transcribes every note, and hands you back a real playable sampler kit — SFZ and DecentSampler, velocity layers included. This is a real render. Not a mockup. 🥁

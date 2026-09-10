@@ -109,3 +109,35 @@ Both `pick_medoid` and `pick_diverse_rr` catch all exceptions from the CLAP call
 
 **pydantic-settings `toml_file` in `model_config` causes a warning**
 `toml_file` is recognized as a config key but only takes effect if a `TomlConfigSettingsSource` is added to `settings_customise_sources`. Without that, pydantic-settings emits a warning on every import. Fix: removed `toml_file` from `model_config`; TOML loading is now done manually via `tomllib` in `config.load_config()`.
+
+---
+
+## Decision summary table
+
+The one-line version of every choice above, plus the ones that never got a section.
+
+| Decision | What was chosen | Why |
+|----------|----------------|-----|
+| Separator | htdemucs_ft (default), htdemucs_6s (6-stem) | MIT license, 9.20 dB SDR, runs on MPS |
+| Drum sub-stems | LarsNet (w/ freq-band fallback) | Only open model with dedicated per-class U-Nets |
+| Monophonic f0 | torchcrepe (not crepe PyPI) | crepe 0.0.16 build is broken on setuptools ≥ 71 |
+| Pitch shifting | pyrubberband + Rubber Band R3 | ±6 st pre-shift threshold; sampler handles smaller intervals |
+| Stem save format | soundfile PCM_24 (not torchaudio.save) | torchcodec doesn't support MPS encoding |
+| Output formats | SFZ + DecentSampler simultaneously | SFZ is the open standard; DS gives a free polished runtime |
+| Bass range default | C1–G4 (MIDI 24–67) | Real-song testing showed most bass sits at C#1–E1, below old E1 floor |
+| f0 tracking window | 90s cap | Full-song torchcrepe OOM on 4-min stems at CPU; 90s captures all pitches |
+| Velocity layers | Sort by pre-normalization peak | Post-normalization peaks are uniform; raw energy needed to sort |
+| Cache key | (file_sha256, model, version, params, out_dir) | Out dir must be in key — absolute paths in cached OneShots break across runs |
+| Package manager | uv | Fast, Python-version-aware, no conda |
+| LarsNet config | abs-path config_abs.yaml written at runtime | config.yaml uses relative paths, breaks when cwd ≠ larsnet dir |
+| Canonical sample selection | CLAP medoid (all occurrences) | "Pick longest" misses quieter but timbrally cleaner occurrences; CLAP centroid is more perceptually representative |
+| Round-robin diversity | Farthest-point sampling on CLAP | HDBSCAN degenerates on small N (5–20 hits/bucket); farthest-point directly maximises pairwise cosine distance |
+| Denoising compat | monkey-patch torchaudio.backend.common before df.* import | deepfilternet 0.5.6 uses APIs removed in torchaudio 2.x; patching avoids pinning torchaudio |
+| ADSR source | 5 ms RMS hops on the normalized clip | Spectral-centroid approaches miss the envelope shape for non-harmonic sounds; RMS is instrument-agnostic |
+| Loop points | Autocorrelation on middle-half + zero-crossing alignment | Period detection on the steady-state region avoids attack transient bias; zero-crossing prevents clicks |
+| DS ADSR granularity | Median across zones on `<group>` | DecentSampler ADSR is per-group, not per-sample; SFZ gets full per-region ADSR |
+| Pitched separation cascade | BS-RoFormer (vocal pre-removal) → htdemucs (everything else) | htdemucs's vocal isolation (~10.5 dB) leaks into "other"; pre-stripping with 17 dB BS-RoFormer makes "other" a true non-vocal residual |
+| Banquet query selection | Highest-RMS 10 s window of the rough htdemucs stem (auto), overridable via `--query MM:SS-MM:SS` | First-10 s window misses sparse intros and can lock Banquet onto intro percussion — auto-RMS finds the moment the target instrument is actually present |
+| Banquet input audio | The BS-RoFormer instrumental, not the raw mix | When Banquet sees vocals in the input, it can extract vocal-bleed content matching the query timbre; the cascade input keeps it on instrument-only |
+| MC-101 drum format | Re-encode WAVs as PCM_16 on export | MC-101 firmware rejects float32 WAVs; slicer writes float32 by default so we re-encode at the export boundary |
+| MC-101 SD card copy | `shutil.copyfile` (content only), not `copy2` | FAT32 returns `EINVAL` on `chflags`, breaking `copystat`; `copyfile` skips metadata |

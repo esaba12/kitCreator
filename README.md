@@ -170,154 +170,85 @@ Done in 12.3s — 80 samples
 
 ## Architecture
 
+Three pipelines share a common spine: **separate → transcribe → extract → package**.
+Drums branch at sub-stem separation and slice by velocity; pitched instruments branch at
+f0/polyphonic transcription and fill zones per MIDI note.
+
 ```
-song.wav
-  │
-  ├─ (pitched only) ─▶
-  │   roformer_runner.py   BS-RoFormer → vocals + instrumental
-  │                        (instrumental fed to demucs instead of raw mix)
-  │
-  ▼
-demucs_runner.py         htdemucs_ft → drums.wav, bass.wav, vocals.wav, other.wav
-  │                      htdemucs_6s → + guitar.wav, piano.wav  (guitar/piano only)
-  │
-  ├─▶ (drums)
-  │   denoise.py*          DeepFilterNet3 stem cleanup          [--quality high]
-  │   larsnet_runner.py    LarsNet → kick / snare / hihat / toms / cymbals stems
-  │   slicer.py            onset detect → velocity-layered one-shots → normalize
-  │   clap_embed.py        LAION-CLAP embeddings per hit
-  │   cluster.py           farthest-point sampling → diverse round-robins per layer
-  │   sfz_writer.py        kit.sfz  (vel layers, round-robins, hihat choke)
-  │   decentsampler_writer.py  kit.dspreset
-  │
-  ├─▶ (bass)
-  │   denoise.py*          DeepFilterNet3 stem cleanup          [--quality high]
-  │   crepe_mono.py        torchcrepe f0 → (times, f0_hz, periodicity)
-  │   pitched_slicer.py    note segmentation → collect all occurrences per pitch
-  │   clap_embed.py        LAION-CLAP embeddings per occurrence
-  │   cluster.py           pick_medoid → canonical sample per MIDI note
-  │   pitched_slicer.py    Voronoi zone fill → Rubber Band R3 pre-shift (gap > 6 st)
-  │   adsr.py              RMS-envelope ADSR estimation per zone
-  │   loop_finder.py       autocorrelation loop points (sustained samples only)
-  │   sfz_writer.py        kit.sfz  (lokey/hikey/pitch_keycenter, ampeg_*, loop)
-  │   decentsampler_writer.py  kit.dspreset
-  │
-  └─▶ (guitar / piano / synth)
-      query_separator.py*  Banquet query separation             [--quality high]
-                           (input = BS-RoFormer instrumental, not raw mix)
-                           (query window = highest-RMS 10 s of rough stem, or --query)
-      denoise.py*          DeepFilterNet3 stem cleanup          [--quality high]
-      basic_pitch_runner.py  Basic Pitch polyphonic → note events
-      pitched_slicer.py    collect occurrences → CLAP medoid → Voronoi fill
-      adsr.py + loop_finder.py  envelope + loop points per zone
-      sfz_writer.py        kit.sfz
-      decentsampler_writer.py  kit.dspreset
-
-(after the kit is built, --mc101 <path> copies it to a Roland MC-101 SD card
- via package/mc101_writer.py — drums become per-pad PCM_16 WAVs + SETUP.txt;
- pitched exports a single root sample for the MC-101 Tone track's chromatic transpose)
-
-* only when --quality high
+song.wav → [BS-RoFormer] → demucs → [LarsNet | crepe | Basic Pitch]
+         → slice → CLAP select → [pitch-shift, ADSR, loop points]
+         → kit.sfz + kit.dspreset  (+ optional MC-101 SD card export)
 ```
 
-**Module map:**
+Full stage-by-stage data flow and the status of every module are in
+[`docs/module-map.md`](docs/module-map.md); the per-instrument spec is in
+[`docs/pipeline-spec.md`](docs/pipeline-spec.md).
 
-| Module | Status | Does |
-|--------|--------|------|
-| `separation/demucs_runner.py` | ✅ Working | htdemucs_ft / htdemucs_6s separation, MPS-accelerated |
-| `separation/larsnet_runner.py` | ✅ Working | LarsNet 5-class drum sub-stem separation |
-| `separation/roformer_runner.py` | ✅ Working | BS-RoFormer vocal pre-removal cascade (pitched instruments, all qualities) |
-| `separation/query_separator.py` | ✅ Working | Banquet query-based separation (optional, `--quality high`) |
-| `transcribe/crepe_mono.py` | ✅ Working | torchcrepe monophonic f0 tracking for bass/lead |
-| `transcribe/basic_pitch_runner.py` | ✅ Working | Basic Pitch polyphonic transcription for guitar/piano/synth |
-| `transcribe/mt3_runner.py` | 🔲 Stub | Multi-instrument joint transcription (deferred) |
-| `extract/slicer.py` | ✅ Working | Drum onset detection, velocity-layered one-shot slicing |
-| `extract/pitched_slicer.py` | ✅ Working | Bass f0 / polyphonic note events → per-note samples + zone fill |
-| `extract/adsr.py` | ✅ Working | ADSR envelope estimation (attack/decay/sustain/release from RMS envelope) |
-| `extract/cluster.py` | ✅ Working | CLAP-based medoid + farthest-point RR selection |
-| `extract/denoise.py` | ✅ Working | DeepFilterNet3 post-separation denoising (activated at --quality high) |
-| `extract/loop_finder.py` | ✅ Working | Autocorrelation loop-point search with zero-crossing alignment |
-| `pitchshift/rubberband_wrapper.py` | ✅ Working | Rubber Band R3 pitch shifting |
-| `timbre/clap_embed.py` | ✅ Working | LAION-CLAP 512-d timbre embeddings (lazy singleton, 600 MB download on first use) |
-| `package/sfz_writer.py` | ✅ Working | SFZ: drums (vel layers, RR, choke) + pitched (zones) |
-| `package/decentsampler_writer.py` | ✅ Working | DecentSampler XML: same structure |
-| `package/mc101_writer.py` | ✅ Working | Roland MC-101 SD card export (drums: per-pad PCM_16 + SETUP.txt; pitched: single root sample) |
-| `package/ableton_writer.py` | 🔲 Stub | Ableton .adg drum rack export (Phase 2) |
-| `cache.py` | ✅ Working | Content-addressed diskcache, wired into pipeline |
-| `synth/dac_lm.py` | 🔲 Stub | DAC-token LM for neural pitch fill (Phase 2) |
+## Notable decisions
 
----
+**Strip the vocals before the separator that isn't good at vocals.** htdemucs isolates
+vocals at ~10.5 dB, so vocal bleed lands in the "other" stem — exactly the stem guitar and
+synth kits are built from. Running BS-RoFormer (17 dB) first makes "other" a true
+non-vocal residual. It costs ~3 min/song, and stems are cached by content hash so it runs
+once per song, not once per build.
+
+**Pick the canonical sample by timbre, not by length.** The obvious heuristic — keep the
+longest occurrence of each note — reliably picks loud, dirty hits. Taking the CLAP-embedding
+medoid across every occurrence instead picks the one that's most perceptually
+representative, which is what a sampler actually wants.
+
+**Round-robins use farthest-point sampling, not clustering.** HDBSCAN degenerates on the
+5–20 hits per velocity bucket that a real song provides. Farthest-point sampling on CLAP
+embeddings directly maximizes pairwise distance, which is the actual goal.
+
+**Sort velocity layers before normalizing, not after.** Normalization makes every peak
+uniform, so sorting afterward yields arbitrary layers. The raw pre-normalization energy is
+the only thing that carries the dynamics.
+
+**The cache key includes the output directory.** Cached `OneShot` objects hold absolute
+sample paths, so a cache hit from a different `--out` produces an SFZ pointing at files
+that aren't there. Subtle, and only reproducible on a second run with different arguments.
+
+**Ship SFZ and DecentSampler together.** SFZ is the open standard but needs a host;
+DecentSampler is a free VST/AU that makes the kit playable immediately. Writing both costs
+one extra writer module and removes the "now install a sampler" step.
+
+The full log — every non-obvious choice, with the bug that motivated it — is in
+[`docs/decisions.md`](docs/decisions.md).
+
+## Known issues
+
+- **LarsNet weights are CC-BY-NC 4.0** — fine for personal use, not for redistribution.
+- **808-heavy tracks** produce 1–2 unique bass pitches, because 808 sub-bass is often a
+  single root note. Use `--range C1-G4` or lower.
+- **f0 tracking is capped at 90 s** to avoid OOM, so pitches appearing only late in a song
+  are missed.
+- **Banquet takes ~15–35 min/song on CPU** — it's `--quality high` only, and not needed
+  for a good kit.
+
+Eleven more, with workarounds, in [`docs/known-issues.md`](docs/known-issues.md).
 
 ## Roadmap
 
-### `--quality high` stack
-
-**Default quality** for pitched instruments now runs a BS-RoFormer → htdemucs cascade automatically (no flag). `--quality high` adds three more optional stages on top:
-
-| Stage | What it does | Runtime (CPU) |
-|-------|-------------|---------------|
-| **Banquet** (pitched only) | Query-conditioned separation. Runs on the BS-RoFormer instrumental (not the raw mix), with the auto-picked highest-RMS 10 s window of the rough stem as query — or `--query MM:SS-MM:SS` for manual control | ~15–35 min/song |
-| **DeepFilterNet3** (all instruments) | Neural noise suppression on the target stem before slicing | ~real-time |
-| **CLAP round-robins** (drums) | Timbral farthest-point sampling instead of energy-spread; ~600 MB model download on first use | fast after download |
+**`--quality high`** adds Banquet query-conditioned separation (pitched), DeepFilterNet3
+denoising, and CLAP-based round-robins. One-time setup:
 
 ```bash
-# One-time setup for Banquet (guitar/piano/synth):
 kitforge setup-banquet    # ~30 MB repo + ~645 MB weights
-
-# Run with all enhancements:
 kitforge build --song song.wav --instrument piano --quality high --out ~/Desktop/piano_kit
 ```
 
-`default` and `fast` are unchanged — the extra models are never loaded.
+`default` and `fast` never load those models.
 
-### Phase 2 — DAC-token language model
+**Phase 2 — DAC-token language model.** A ~100M-param decoder-only transformer over DAC
+tokens, conditioned on pitch, velocity, and CLAP timbre embedding, to replace DSP pitch
+shifting for large intervals. Scaffolding in `synth/dac_lm.py`.
 
-Neural pitch fill: train a ~100M param decoder-only transformer over DAC tokens,
-conditioned on pitch + velocity + CLAP timbre embedding. Replaces DSP pitch shifting
-for large intervals. See `synth/dac_lm.py`.
+## Documentation
 
----
-
-## Known issues / gotchas
-
-- **LarsNet weights are CC-BY-NC 4.0** — fine for personal use, not for distribution
-- **Bass on 808-heavy tracks** — 808 sub-bass is often one root note; expect 1–2 unique pitches. Use `--range C1-G4` or lower to match the tuning
-- **torchcrepe capped at 90s** — f0 tracking runs on the first 90s of the bass stem to avoid OOM. Pitches that only appear late in the song are missed
-- **torchaudio + torchcodec** — demucs stem writing uses soundfile directly to avoid MPS incompatibility with torchcodec's audio encoder
-- **LarsNet tqdm output** — LarsNet prints its own progress bars to stdout; these come from inside the library and can't be suppressed without patching
-- **CLAP model download (~600 MB)** — downloads from HuggingFace on the first kit build that needs CLAP clustering; subsequent runs use the cached weights
-- **deepfilternet 0.5.6 + torchaudio 2.x** — the package uses removed APIs; `denoise.py` patches them at import time. If deepfilternet releases a fix, the patch is safe to remove
-- **Banquet CPU runtime** — ~15–35 min/song on CPU; plan for an overnight run or use a CUDA GPU. Not needed for default quality
-- **BS-RoFormer adds ~3 min** to pitched-instrument runs at any quality. Stems are cached by content hash, so it only runs once per song
-- **Banquet timbral limits** — Banquet maps the user's instrument name to one of a fixed set of stems (`synth_lead`, `synth_pad`, `electric_piano`, etc.). Hybrid timbres (e.g. a synth + Rhodes layer) blend toward the closest prototype; absolute exact-timbre reconstruction will need Phase 2's neural fill
-- **MC-101 SD card auto-unmount** — long Banquet runs sometimes outlive the SD card's USB connection. Replug after the kit finishes and re-run `kitforge build … --mc101 …` — the pipeline is fully cached, so the export takes <1 s
-
----
-
-## Tech decisions log
-
-| Decision | What was chosen | Why |
-|----------|----------------|-----|
-| Separator | htdemucs_ft (default), htdemucs_6s (6-stem) | MIT license, 9.20 dB SDR, runs on MPS |
-| Drum sub-stems | LarsNet (w/ freq-band fallback) | Only open model with dedicated per-class U-Nets |
-| Monophonic f0 | torchcrepe (not crepe PyPI) | crepe 0.0.16 build is broken on setuptools ≥ 71 |
-| Pitch shifting | pyrubberband + Rubber Band R3 | ±6 st pre-shift threshold; sampler handles smaller intervals |
-| Stem save format | soundfile PCM_24 (not torchaudio.save) | torchcodec doesn't support MPS encoding |
-| Output formats | SFZ + DecentSampler simultaneously | SFZ is the open standard; DS gives a free polished runtime |
-| Bass range default | C1–G4 (MIDI 24–67) | Real-song testing showed most bass sits at C#1–E1, below old E1 floor |
-| f0 tracking window | 90s cap | Full-song torchcrepe OOM on 4-min stems at CPU; 90s captures all pitches |
-| Velocity layers | Sort by pre-normalization peak | Post-normalization peaks are uniform; raw energy needed to sort |
-| Cache key | (file_sha256, model, version, params, out_dir) | Out dir must be in key — absolute paths in cached OneShots break across runs |
-| Package manager | uv | Fast, Python-version-aware, no conda |
-| LarsNet config | abs-path config_abs.yaml written at runtime | config.yaml uses relative paths, breaks when cwd ≠ larsnet dir |
-| Canonical sample selection | CLAP medoid (all occurrences) | "Pick longest" misses quieter but timbrally cleaner occurrences; CLAP centroid is more perceptually representative |
-| Round-robin diversity | Farthest-point sampling on CLAP | HDBSCAN degenerates on small N (5–20 hits/bucket); farthest-point directly maximises pairwise cosine distance |
-| Denoising compat | monkey-patch torchaudio.backend.common before df.* import | deepfilternet 0.5.6 uses APIs removed in torchaudio 2.x; patching avoids pinning torchaudio |
-| ADSR source | 5 ms RMS hops on the normalized clip | Spectral-centroid approaches miss the envelope shape for non-harmonic sounds; RMS is instrument-agnostic |
-| Loop points | Autocorrelation on middle-half + zero-crossing alignment | Period detection on the steady-state region avoids attack transient bias; zero-crossing prevents clicks |
-| DS ADSR granularity | Median across zones on `<group>` | DecentSampler ADSR is per-group, not per-sample; SFZ gets full per-region ADSR |
-| Pitched separation cascade | BS-RoFormer (vocal pre-removal) → htdemucs (everything else) | htdemucs's vocal isolation (~10.5 dB) leaks into "other"; pre-stripping with 17 dB BS-RoFormer makes "other" a true non-vocal residual |
-| Banquet query selection | Highest-RMS 10 s window of the rough htdemucs stem (auto), overridable via `--query MM:SS-MM:SS` | First-10 s window misses sparse intros and can lock Banquet onto intro percussion — auto-RMS finds the moment the target instrument is actually present |
-| Banquet input audio | The BS-RoFormer instrumental, not the raw mix | When Banquet sees vocals in the input, it can extract vocal-bleed content matching the query timbre; the cascade input keeps it on instrument-only |
-| MC-101 drum format | Re-encode WAVs as PCM_16 on export | MC-101 firmware rejects float32 WAVs; slicer writes float32 by default so we re-encode at the export boundary |
-| MC-101 SD card copy | `shutil.copyfile` (content only), not `copy2` | FAT32 returns `EINVAL` on `chflags`, breaking `copystat`; `copyfile` skips metadata |
+| Doc | What's in it |
+|---|---|
+| [Pipeline spec](docs/pipeline-spec.md) | Stage-by-stage spec for each instrument |
+| [Module map](docs/module-map.md) | Every module, its status, and the full data flow |
+| [Decisions](docs/decisions.md) | Why things are the way they are |
+| [Known issues](docs/known-issues.md) | Gotchas and workarounds |

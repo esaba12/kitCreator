@@ -49,7 +49,7 @@ demucs_runner.py         htdemucs_ft → drums.wav, bass.wav, vocals.wav, other.
       decentsampler_writer.py  kit.dspreset
 
 (after the kit is built, --mc101 <path> copies it to a Roland MC-101 SD card
- via package/mc101_writer.py — drums become per-pad PCM_16 WAVs + SETUP.txt;
+ via package/mc101_writer.py; drums become per-pad PCM_16 WAVs + SETUP.txt;
  pitched exports a single root sample for the MC-101 Tone track's chromatic transpose)
 
 * only when --quality high

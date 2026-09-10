@@ -231,7 +231,7 @@ def _infer(
                 commitment_weight=config.get("commitment_weight", 1.0),
             )
 
-            # CPU only — model contains float64 buffers (PaSST position embeddings)
+            # CPU only: model contains float64 buffers (PaSST position embeddings)
             # that MPS doesn't support. CUDA used if available.
             device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
             system = system.to(device)

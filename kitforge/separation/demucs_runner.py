@@ -46,7 +46,7 @@ def separate(
     stem_paths: dict[str, Path] = {}
     for stem, source in zip(model.sources, sources):
         out_path = out_dir / f"{stem}.wav"
-        # Move to CPU before writing — torchcodec doesn't support MPS encoding
+        # Move to CPU before writing; torchcodec doesn't support MPS encoding
         audio_np = source.cpu().numpy().T  # (samples, channels)
         sf.write(str(out_path), audio_np, model.samplerate, subtype="PCM_24")
         stem_paths[stem] = out_path

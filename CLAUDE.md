@@ -1,7 +1,7 @@
-# kitCreator — CLAUDE.md
+# kitCreator: CLAUDE.md
 
 The architecture bible for this project is:
-`compass_artifact_wf-23acf0a9-e08f-4df3-b837-c108c6948a5d_text_markdown.md`
+`docs/architecture-report.md`
 Read it before making any architectural suggestion. All design decisions flow from it.
 
 ---
@@ -117,10 +117,10 @@ These are locked in. Do not propose alternatives unless explicitly asked.
 ## Hard Rules
 
 **Architecture**
-- CLAP embeddings are the universal currency — separation routing, sample clustering, and neural-synth conditioning all flow through CLAP. One model, many uses.
+- CLAP embeddings are the universal currency: separation routing, sample clustering, and neural-synth conditioning all flow through CLAP. One model, many uses.
 - Every pipeline stage must write a content-addressed cache artifact before returning. No stage re-runs if the cache key matches.
 - Emit SFZ and DecentSampler simultaneously. Never one without the other.
-- Never target Kontakt `.nki` — it's closed/proprietary, not worth engineering against.
+- Never target Kontakt `.nki` — it is closed/proprietary and not worth engineering against.
 
 **Code style**
 - Python 3.11. Type-annotate all function signatures.
@@ -138,7 +138,7 @@ These are locked in. Do not propose alternatives unless explicitly asked.
 - Acceptance test for every phase milestone: a real audio file in, a loadable SFZ/DecentSampler kit out, triggered from a MIDI keyboard.
 - Unit tests live in `tests/`; integration tests require real audio (keep a small test fixture set, <10 MB total).
 
-**Upgrades — gate criteria before switching tools**
+**Upgrades: gate criteria before switching tools**
 - htdemucs_ft → BS-RoFormer: only when stem SDR is the measurable bottleneck (kit sounds "smeary" on eval set)
 - DSP pitch shift → neural fill: only when users report formant artifacts beyond ±4 semitones
 - CLI → plugin: only when ≥50 weekly active users or kit-export workflow is the clear friction point
@@ -147,7 +147,7 @@ These are locked in. Do not propose alternatives unless explicitly asked.
 
 ## The Hardest Engineering Problem
 
-Sub-stem separation — isolating guitar vs. piano vs. synth within the "other" stem. htdemucs_6s piano quality is explicitly poor (flagged in Meta's own README). Banquet (CLAP-query-conditioned) is the current frontier. Prototype `query_separator.py` early because it gates all downstream pitched-instrument work.
+Sub-stem separation: isolating guitar vs. piano vs. synth within the "other" stem. htdemucs_6s piano quality is explicitly poor (flagged in Meta's own README). Banquet (CLAP-query-conditioned) is the current frontier. Prototype `query_separator.py` early because it gates all downstream pitched-instrument work.
 
 ---
 

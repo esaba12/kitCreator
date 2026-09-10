@@ -8,7 +8,7 @@ def pick_medoid(clips: list[tuple[float, np.ndarray]], sr: int) -> np.ndarray:
     """
     Return the clip whose CLAP embedding is closest to the cluster centroid.
 
-    clips: list of (any_float, mono_audio) — only the audio is embedded.
+    clips: list of (any_float, mono_audio); only the audio is embedded.
     Falls back to the first clip if CLAP unavailable or N == 1.
     """
     if len(clips) <= 1:
@@ -35,7 +35,7 @@ def pick_diverse_rr(
     """
     Pick up to n timbrally-diverse clips via farthest-point sampling on CLAP embeddings.
 
-    clips: list of (any_float, mono_audio) — only the audio is embedded.
+    clips: list of (any_float, mono_audio); only the audio is embedded.
     Falls back to evenly-spread selection if CLAP unavailable or N <= n.
     """
     audios = [a for _, a in clips]

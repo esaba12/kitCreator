@@ -8,7 +8,7 @@ from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
 class KitForgeConfig(BaseSettings):
-    # toml_file removed from model_config — loaded manually in cli.py to avoid
+    # toml_file removed from model_config, loaded manually in cli.py to avoid
     # the "config key will be ignored" warning when no TOML source is registered
     model_config = SettingsConfigDict(env_prefix="KITFORGE_")
 

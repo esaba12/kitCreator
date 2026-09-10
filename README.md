@@ -4,7 +4,7 @@ Turn any song into a playable multi-octave sampler kit. Give it an audio file, t
 
 ![kitCreator demo](docs/media/kitcreator-demo.gif)
 
-▶ [Watch with sound](https://ethansaba.com/videos/kitcreator.mp4) — "Any song becomes a playable kit."
+▶ [Watch with sound](https://ethansaba.com/videos/kitcreator.mp4): "Any song becomes a playable kit."
 · **[Live demo](https://kitcreator-app.vercel.app/)**
 
 Built by Ethan Saba.
@@ -30,25 +30,25 @@ kitforge build --song mysong.wav --instrument "lead synth" --out ~/Desktop/synth
 
 ### Drums pipeline
 
-1. **Demucs htdemucs_ft** — separates the song into vocals / drums / bass / other stems
-2. **[`--quality high`] DeepFilterNet3** — denoises the drum stem to remove residual bleed before slicing
-3. **LarsNet** — splits the drum stem into 5 clean sub-stems: kick, snare, hi-hat, toms, cymbals
-4. **Onset detection** — finds every hit in each sub-stem via librosa
-5. **Velocity-layered slicing** — sorts hits by pre-normalization energy, bins into up to 4 velocity layers
-6. **CLAP round-robin selection** — picks up to 4 timbrally-diverse round-robins per layer via farthest-point sampling on LAION-CLAP embeddings (falls back to energy-spread without internet/weights)
-7. **SFZ + DecentSampler export** — hi-hat choke groups, velocity layers (`lovel/hivel`), round-robin sequencing
+1. **Demucs htdemucs_ft**: separates the song into vocals / drums / bass / other stems
+2. **[`--quality high`] DeepFilterNet3**: denoises the drum stem to remove residual bleed before slicing
+3. **LarsNet**: splits the drum stem into 5 clean sub-stems: kick, snare, hi-hat, toms, cymbals
+4. **Onset detection**: finds every hit in each sub-stem via librosa
+5. **Velocity-layered slicing**: sorts hits by pre-normalization energy, bins into up to 4 velocity layers
+6. **CLAP round-robin selection**: picks up to 4 timbrally-diverse round-robins per layer via farthest-point sampling on LAION-CLAP embeddings (falls back to energy-spread without internet/weights)
+7. **SFZ + DecentSampler export**: hi-hat choke groups, velocity layers (`lovel/hivel`), round-robin sequencing
 
 ### Bass / Guitar / Piano / Synth pipeline
 
-1. **BS-RoFormer vocal pre-removal** — `python-audio-separator` with the SOTA `model_bs_roformer_ep_317` checkpoint (17.0 dB instrumental SDR); strips vocals from the mix before htdemucs sees it, so the "other" stem doesn't inherit residual vocal bleed. Runs on Apple Silicon MPS + CoreML, ~3 min/song.
-2. **Demucs** — guitar/piano use `htdemucs_6s` (6-stem, dedicated stems); synth uses `htdemucs_ft` "other" stem. Now fed the BS-RoFormer instrumental, not the raw mix.
-3. **[`--quality high`] Banquet** — query-conditioned separation. Query is auto-picked as the highest-RMS 10 s window of the rough htdemucs stem (or user-specified via `--query MM:SS-MM:SS`). Banquet runs on the BS-RoFormer instrumental, not the raw mix.
-4. **[`--quality high`] DeepFilterNet3** — denoises the (Banquet-refined) stem before transcription
-5. **Basic Pitch / torchcrepe** — polyphonic transcription for guitar/piano/synth, monophonic f0 for bass
-6. **CLAP canonical selection** — medoid across all occurrences of each MIDI pitch
-7. **Voronoi zone fill** — Rubber Band R3 pre-shift for gaps > 6 semitones
-8. **ADSR estimation + loop point detection** — RMS-envelope ADSR per zone, autocorrelation-based loop points on sustained samples
-9. **SFZ + DecentSampler export** — `pitch_keycenter` per zone, per-region ADSR and loop opcodes
+1. **BS-RoFormer vocal pre-removal**: `python-audio-separator` with the SOTA `model_bs_roformer_ep_317` checkpoint (17.0 dB instrumental SDR); strips vocals from the mix before htdemucs sees it, so the "other" stem doesn't inherit residual vocal bleed. Runs on Apple Silicon MPS + CoreML, ~3 min/song.
+2. **Demucs**: guitar/piano use `htdemucs_6s` (6-stem, dedicated stems); synth uses `htdemucs_ft` "other" stem. Now fed the BS-RoFormer instrumental, not the raw mix.
+3. **[`--quality high`] Banquet**: query-conditioned separation. Query is auto-picked as the highest-RMS 10 s window of the rough htdemucs stem (or user-specified via `--query MM:SS-MM:SS`). Banquet runs on the BS-RoFormer instrumental, not the raw mix.
+4. **[`--quality high`] DeepFilterNet3**: denoises the (Banquet-refined) stem before transcription
+5. **Basic Pitch / torchcrepe**: polyphonic transcription for guitar/piano/synth, monophonic f0 for bass
+6. **CLAP canonical selection**: medoid across all occurrences of each MIDI pitch
+7. **Voronoi zone fill**: Rubber Band R3 pre-shift for gaps > 6 semitones
+8. **ADSR estimation + loop point detection**: RMS-envelope ADSR per zone, autocorrelation-based loop points on sustained samples
+9. **SFZ + DecentSampler export**: `pitch_keycenter` per zone, per-region ADSR and loop opcodes
 
 ### Output structure
 
@@ -66,7 +66,7 @@ my_kit/
     └── bass_E2_midi40.wav …                 # guitar/piano/synth: same scheme
 ```
 
-Sample filename convention — drums: `{class}_v{vel_low}_{rr_index}.wav`, pitched: `bass_{note}_{midi}.wav`
+Sample filename convention. Drums: `{class}_v{vel_low}_{rr_index}.wav`, pitched: `bass_{note}_{midi}.wav`
 
 ### Drum SFZ MIDI layout (GM-adjacent)
 
@@ -99,7 +99,7 @@ source .venv/bin/activate
 uv pip install -e ".[dev]"
 ```
 
-**LarsNet weights** (562 MB, CC-BY-NC 4.0 — local use only):
+**LarsNet weights** (562 MB, CC-BY-NC 4.0, local use only):
 
 ```bash
 gdown "1U8-5924B1ii1cjv9p0MTPzayb00P4qoL" -O ~/.cache/kitforge/larsnet/pretrained_larsnet_models.zip
@@ -154,14 +154,14 @@ Supported input formats: `.wav`, `.mp3`, `.flac`, `.aiff`, `.aif`, `.m4a`, `.ogg
 
 **Example output (drums, cached run):**
 ```
-Stage 1/3: Stems cached — skipping separation
+Stage 1/3: Stems cached, skipping separation
   separation: 0.0s
 Stage 2/3: Extracting samples...
-  extraction: 12.2s — 80 one-shots
+  extraction: 12.2s, 80 one-shots
 Stage 3/3: Writing SFZ and DecentSampler preset...
   packaging: 0.0s
 
-Done in 12.3s — 80 samples
+Done in 12.3s, 80 samples
   SFZ           ~/Desktop/kit/kit.sfz
   DecentSampler ~/Desktop/kit/kit.dspreset
   Samples dir   ~/Desktop/kit/samples
@@ -188,13 +188,13 @@ Full stage-by-stage data flow and the status of every module are in
 ## Notable decisions
 
 **Strip the vocals before the separator that isn't good at vocals.** htdemucs isolates
-vocals at ~10.5 dB, so vocal bleed lands in the "other" stem — exactly the stem guitar and
+vocals at ~10.5 dB, so vocal bleed lands in the "other" stem, exactly the stem guitar and
 synth kits are built from. Running BS-RoFormer (17 dB) first makes "other" a true
 non-vocal residual. It costs ~3 min/song, and stems are cached by content hash so it runs
 once per song, not once per build.
 
-**Pick the canonical sample by timbre, not by length.** The obvious heuristic — keep the
-longest occurrence of each note — reliably picks loud, dirty hits. Taking the CLAP-embedding
+**Pick the canonical sample by timbre, not by length.** The obvious heuristic, keeping the
+longest occurrence of each note, reliably picks loud, dirty hits. Taking the CLAP-embedding
 medoid across every occurrence instead picks the one that's most perceptually
 representative, which is what a sampler actually wants.
 
@@ -214,17 +214,17 @@ that aren't there. Subtle, and only reproducible on a second run with different 
 DecentSampler is a free VST/AU that makes the kit playable immediately. Writing both costs
 one extra writer module and removes the "now install a sampler" step.
 
-The full log — every non-obvious choice, with the bug that motivated it — is in
+The full log (every non-obvious choice, with the bug that motivated it) is in
 [`docs/decisions.md`](docs/decisions.md).
 
 ## Known issues
 
-- **LarsNet weights are CC-BY-NC 4.0** — fine for personal use, not for redistribution.
+- **LarsNet weights are CC-BY-NC 4.0**: fine for personal use, not for redistribution.
 - **808-heavy tracks** produce 1–2 unique bass pitches, because 808 sub-bass is often a
   single root note. Use `--range C1-G4` or lower.
 - **f0 tracking is capped at 90 s** to avoid OOM, so pitches appearing only late in a song
   are missed.
-- **Banquet takes ~15–35 min/song on CPU** — it's `--quality high` only, and not needed
+- **Banquet takes ~15–35 min/song on CPU**: it's `--quality high` only, and not needed
   for a good kit.
 
 Eleven more, with workarounds, in [`docs/known-issues.md`](docs/known-issues.md).
@@ -241,7 +241,7 @@ kitforge build --song song.wav --instrument piano --quality high --out ~/Desktop
 
 `default` and `fast` never load those models.
 
-**Phase 2 — DAC-token language model.** A ~100M-param decoder-only transformer over DAC
+**Phase 2: DAC-token language model.** A ~100M-param decoder-only transformer over DAC
 tokens, conditioned on pitch, velocity, and CLAP timbre embedding, to replace DSP pitch
 shifting for large intervals. Scaffolding in `synth/dac_lm.py`.
 
@@ -253,4 +253,4 @@ shifting for large intervals. Scaffolding in `synth/dac_lm.py`.
 | [Module map](docs/module-map.md) | Every module, its status, and the full data flow |
 | [Decisions](docs/decisions.md) | Why things are the way they are |
 | [Known issues](docs/known-issues.md) | Gotchas and workarounds |
-| [Architecture report](docs/architecture-report.md) | The build report this project started from — prior-art survey, why the orchestration layer is the novel part, and the two-layer plan |
+| [Architecture report](docs/architecture-report.md) | The build report this project started from: prior-art survey, why the orchestration layer is the novel part, and the two-layer plan |

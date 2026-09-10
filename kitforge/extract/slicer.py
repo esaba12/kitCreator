@@ -57,7 +57,7 @@ def slice_drum_stem(
         return _slice_from_larsnet_stems(stem_wavs, sample_dir, debug=debug)
     else:
         if debug:
-            print("  LarsNet not available — using frequency-band split fallback")
+            print("  LarsNet not available, using frequency-band split fallback")
         return _slice_with_band_split(drum_wav, sample_dir, debug=debug)
 
 

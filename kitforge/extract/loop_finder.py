@@ -10,7 +10,7 @@ _MIN_SUSTAIN_FRAC = 0.15
 # Search window for aligning to a zero crossing
 _ZC_SEARCH = 512
 
-# Autocorrelation peak threshold — below this means signal isn't periodic
+# Autocorrelation peak threshold; below this means signal isn't periodic
 _AC_THRESHOLD = 0.3
 
 

@@ -20,7 +20,7 @@ _DRUM_MIDI = {
 _HIHAT_GROUP = 1
 
 _HEADER = """\
-// kitforge drum kit — SFZ format
+// kitforge drum kit, SFZ format
 // sfzformat.com spec
 
 <global>
@@ -65,9 +65,9 @@ def write_drum_sfz(one_shots: list[OneShot], sfz_path: Path) -> None:
 
 
 def write_pitched_sfz(shots: list[PitchedShot], sfz_path: Path) -> None:
-    """Emit a SFZ pitched instrument — one zone per note, with per-region ADSR + loop."""
+    """Emit a SFZ pitched instrument: one zone per note, with per-region ADSR + loop."""
     lines = [
-        "// kitforge pitched kit — SFZ format\n"
+        "// kitforge pitched kit, SFZ format\n"
         "<global>\n",
         "<group>",
     ]

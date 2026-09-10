@@ -1,4 +1,4 @@
-"""DeepFilterNet3 post-separation denoising — removes residual bleed from isolated stems."""
+"""DeepFilterNet3 post-separation denoising: removes residual bleed from isolated stems."""
 from __future__ import annotations
 
 from pathlib import Path

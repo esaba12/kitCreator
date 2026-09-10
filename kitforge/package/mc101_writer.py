@@ -39,7 +39,7 @@ def export_drums(shots: list[OneShot], kit_name: str, sd_root: Path) -> Path:
             copied.append(shot.path.name)
 
     setup_lines = [
-        f"MC-101 Drum Kit — {kit_name}",
+        f"MC-101 Drum Kit: {kit_name}",
         "",
         "PAD ASSIGNMENTS",
         "───────────────",
@@ -83,14 +83,14 @@ def export_pitched(shots: list[PitchedShot], instrument: str, kit_name: str, sd_
     dst_name = f"{instrument.replace(' ', '_')}_root.wav"
     dst = folder / dst_name
 
-    # Pitched WAVs are already PCM_24 — copy content only (FAT32 rejects copystat)
+    # Pitched WAVs are already PCM_24; copy content only (FAT32 rejects copystat)
     import shutil
     shutil.copyfile(root_shot.path, dst)
 
     root_note_name = _midi_to_note(root_shot.midi_note)
 
     setup_lines = [
-        f"MC-101 Tone Sample — {kit_name} ({instrument})",
+        f"MC-101 Tone Sample: {kit_name} ({instrument})",
         "",
         "LOADING STEPS",
         "─────────────",

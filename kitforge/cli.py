@@ -18,7 +18,7 @@ console = Console()
 
 @app.callback()
 def _root() -> None:
-    """kitforge — turn any song into a playable sampler kit."""
+    """kitforge: turn any song into a playable sampler kit."""
 
 _SUPPORTED_FORMATS = {".mp3", ".wav", ".flac", ".aiff", ".aif", ".m4a", ".ogg"}
 
@@ -79,7 +79,7 @@ def build(
     cfg.ensure_dirs()
 
     console.print(
-        f"[bold]Building kit[/bold] — "
+        f"[bold]Building kit[/bold]: "
         f"song=[cyan]{song_path.name}[/cyan] "
         f"instrument=[cyan]{instrument}[/cyan]"
         + (f" range=[cyan]{note_range}[/cyan]" if note_range else "")
@@ -108,7 +108,7 @@ def build(
         sample_count = len(list((result.sample_dir / "samples").glob("*.wav")))
 
     console.print()
-    console.print(f"[bold green]Done[/bold green] in {elapsed:.1f}s — {sample_count} samples")
+    console.print(f"[bold green]Done[/bold green] in {elapsed:.1f}s, {sample_count} samples")
     if result.sfz_path:
         console.print(f"  [green]SFZ[/green]           {result.sfz_path}")
     if result.dspreset_path:
@@ -154,7 +154,7 @@ def _export_mc101(mc101_str: str, song_path: Path, instrument: str, result) -> N
     # Read shots back from the sample dir to avoid threading pipeline state through
     if instrument_lower in {"drums", "drum", "kit", "drum kit"}:
         if result.sample_dir is None:
-            console.print("[red]No sample dir — cannot export to MC-101[/red]")
+            console.print("[red]No sample dir, cannot export to MC-101[/red]")
             return
         from kitforge.extract.slicer import OneShot
         shots = _load_drum_shots(result.sample_dir)
@@ -165,7 +165,7 @@ def _export_mc101(mc101_str: str, song_path: Path, instrument: str, result) -> N
         console.print(f"  [green]MC-101 drums[/green] → {folder}")
     else:
         if result.sample_dir is None:
-            console.print("[red]No sample dir — cannot export to MC-101[/red]")
+            console.print("[red]No sample dir, cannot export to MC-101[/red]")
             return
         shots = _load_pitched_shots(result.sample_dir)
         if not shots:

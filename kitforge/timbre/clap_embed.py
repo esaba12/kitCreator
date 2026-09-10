@@ -1,4 +1,4 @@
-"""LAION-CLAP 512-d audio embeddings — lazy singleton, CPU inference."""
+"""LAION-CLAP 512-d audio embeddings: lazy singleton, CPU inference."""
 from __future__ import annotations
 
 import numpy as np

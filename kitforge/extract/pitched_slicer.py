@@ -36,8 +36,8 @@ class PitchedShot:
     loop_end: int | None = None          # sample offset into the WAV
 
 
-_CREPE_SR = 16000  # torchcrepe's native rate — load at this to avoid double-buffering
-_TRACK_MAX_S = 90.0  # cap f0 tracking to first N seconds — enough to find all pitches
+_CREPE_SR = 16000  # torchcrepe's native rate; load at this to avoid double-buffering
+_TRACK_MAX_S = 90.0  # cap f0 tracking to first N seconds, enough to find all pitches
 
 
 def slice_bass_stem(
@@ -56,7 +56,7 @@ def slice_bass_stem(
     if debug:
         print(f"  bass: loaded {len(y)/sr:.1f}s @ {sr}Hz")
 
-    # Load at 16kHz, capped, for f0 tracking — avoids OOM on long songs
+    # Load at 16kHz, capped, for f0 tracking, avoids OOM on long songs
     track_samples = int(_TRACK_MAX_S * _CREPE_SR)
     y_track, _ = librosa.load(str(bass_wav), sr=_CREPE_SR, mono=True)
     y_track = y_track[:track_samples]
@@ -98,7 +98,7 @@ def slice_pitched_stem(
 ) -> list[PitchedShot]:
     """
     Slice a polyphonic pitched stem using pre-computed note events (e.g. from Basic Pitch).
-    Used for guitar, piano, synth — anything that isn't bass.
+    Used for guitar, piano, synth: anything that isn't bass.
     """
     from kitforge.pitchshift.rubberband_wrapper import pitch_shift
 
@@ -107,7 +107,7 @@ def slice_pitched_stem(
     if debug:
         print(f"  pitched: loaded {len(y)/sr:.1f}s @ {sr}Hz, {len(note_events)} note events")
 
-    # Strip amplitude — _collect_real_samples only needs (start, end, midi)
+    # Strip amplitude: _collect_real_samples only needs (start, end, midi)
     events_triples = [(s, e, n) for s, e, n, _ in note_events]
     real_samples = _collect_real_samples(y, sr, events_triples, debug)
 

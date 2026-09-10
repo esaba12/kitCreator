@@ -1,6 +1,6 @@
 """BS-RoFormer vocal/instrumental separation via python-audio-separator.
 
-Used as a pre-stage before htdemucs on pitched instruments — removes vocals
+Used as a pre-stage before htdemucs on pitched instruments; removes vocals
 with ~17 dB instrumental SDR, far above htdemucs's ~14 dB.
 """
 from __future__ import annotations
@@ -8,7 +8,7 @@ from __future__ import annotations
 import os
 from pathlib import Path
 
-# SOTA BS-RoFormer checkpoint — vocals SDR 12.9, instrumental SDR 17.0
+# SOTA BS-RoFormer checkpoint: vocals SDR 12.9, instrumental SDR 17.0
 _ROFORMER_MODEL = "model_bs_roformer_ep_317_sdr_12.9755.ckpt"
 
 _model_singleton = None
@@ -33,7 +33,7 @@ def _get_separator(out_dir: Path):
     sep = Separator(
         output_dir=str(out_dir),
         output_format="WAV",
-        log_level=40,  # ERROR — silence the noisy info logs
+        log_level=40,  # ERROR, silence the noisy info logs
     )
     sep.load_model(model_filename=_ROFORMER_MODEL)
     _model_singleton = sep

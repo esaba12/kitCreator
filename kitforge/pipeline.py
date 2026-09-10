@@ -107,7 +107,7 @@ def build_kit(
 
     t1 = time.perf_counter()
     if _stems_cached(stems_dir, song_hash, expected_stems, pipeline_tag):
-        console.print("[bold blue]Stage 1/3:[/bold blue] Stems cached — skipping separation")
+        console.print("[bold blue]Stage 1/3:[/bold blue] Stems cached, skipping separation")
         stem_paths = {s: stems_dir / f"{s}.wav" for s in expected_stems}
     else:
         console.print("[bold blue]Stage 1/3:[/bold blue] Separating stems...")
@@ -143,14 +143,14 @@ def build_kit(
         ck = cache_key(drum_wav, "drum_slicer", _SLICER_VERSION, slicer_params)
 
         if stage_cache.has(ck) and _cached_files_exist(stage_cache.get(ck)):
-            console.print("  samples cached — skipping slicing")
+            console.print("  samples cached, skipping slicing")
             one_shots = stage_cache.get(ck)
         else:
             one_shots = slice_drum_stem(drum_wav, sample_dir, debug=config.debug)
             stage_cache.set(ck, one_shots)
 
         result.sample_dir = sample_dir
-        console.print(f"  [dim]extraction: {time.perf_counter()-t2:.1f}s — {len(one_shots)} one-shots[/dim]")
+        console.print(f"  [dim]extraction: {time.perf_counter()-t2:.1f}s, {len(one_shots)} one-shots[/dim]")
 
         # ── Stage 3: Package ─────────────────────────────────────────────────
         t3 = time.perf_counter()
@@ -168,7 +168,7 @@ def build_kit(
         console.print(f"  [dim]packaging: {time.perf_counter()-t3:.1f}s[/dim]")
 
         if not one_shots:
-            result.warnings.append("No one-shots detected — try a song with a clearer drum part")
+            result.warnings.append("No one-shots detected. Try a song with a clearer drum part")
 
     elif instrument_lower in _BASS_INSTRUMENTS:
         from kitforge.extract.pitched_slicer import slice_bass_stem
@@ -186,7 +186,7 @@ def build_kit(
         ck = cache_key(bass_wav, "bass_pitcher", _PITCHER_VERSION, pitcher_params)
 
         if stage_cache.has(ck) and _cached_files_exist(stage_cache.get(ck)):
-            console.print("  samples cached — skipping pitch extraction")
+            console.print("  samples cached, skipping pitch extraction")
             shots = stage_cache.get(ck)
         else:
             shots = slice_bass_stem(
@@ -197,7 +197,7 @@ def build_kit(
             stage_cache.set(ck, shots)
 
         result.sample_dir = sample_dir
-        console.print(f"  [dim]extraction: {time.perf_counter()-t2:.1f}s — {len(shots)} zones[/dim]")
+        console.print(f"  [dim]extraction: {time.perf_counter()-t2:.1f}s, {len(shots)} zones[/dim]")
 
         # ── Stage 3: Package ─────────────────────────────────────────────────
         t3 = time.perf_counter()
@@ -215,7 +215,7 @@ def build_kit(
         console.print(f"  [dim]packaging: {time.perf_counter()-t3:.1f}s[/dim]")
 
         if not shots:
-            result.warnings.append("No bass notes detected — check that the song has a clear bass part")
+            result.warnings.append("No bass notes detected. Check that the song has a clear bass part")
 
     elif instrument_lower in _PITCHED_INSTRUMENTS:
         from kitforge.transcribe.basic_pitch_runner import transcribe
@@ -234,7 +234,7 @@ def build_kit(
 
         lo_midi, hi_midi = _parse_note_range(note_range, default=_DEFAULT_RANGES[family])
 
-        # Optional Banquet refinement — only when --quality high
+        # Optional Banquet refinement, only when --quality high
         # (CPU inference ~35 min/song; CUDA ~5 min)
         from kitforge.separation import query_separator
         if config.separator_quality == "high" and query_separator.is_available():
@@ -262,7 +262,7 @@ def build_kit(
         ck = cache_key(stem_wav, f"basic_pitch_{family}", _BASIC_PITCH_VERSION, bp_params)
 
         if stage_cache.has(ck) and _cached_files_exist(stage_cache.get(ck)):
-            console.print("  samples cached — skipping transcription")
+            console.print("  samples cached, skipping transcription")
             shots = stage_cache.get(ck)
         else:
             note_events = transcribe(stem_wav)
@@ -276,7 +276,7 @@ def build_kit(
             stage_cache.set(ck, shots)
 
         result.sample_dir = sample_dir
-        console.print(f"  [dim]extraction: {time.perf_counter()-t2:.1f}s — {len(shots)} zones[/dim]")
+        console.print(f"  [dim]extraction: {time.perf_counter()-t2:.1f}s, {len(shots)} zones[/dim]")
 
         # ── Stage 3: Package ─────────────────────────────────────────────────
         t3 = time.perf_counter()
@@ -295,7 +295,7 @@ def build_kit(
 
         if not shots:
             result.warnings.append(
-                f"No {family} notes detected — try a song with a clearer {family} part, "
+                f"No {family} notes detected. Try a song with a clearer {family} part, "
                 "or check that the stem contains the expected instrument"
             )
 
@@ -371,7 +371,7 @@ def _banquet_refine(
         )
         stage_cache.set(ck, str(refined_path))
     except ValueError as e:
-        # Audio too short for Banquet — fall back to htdemucs stem
+        # Audio too short for Banquet, fall back to htdemucs stem
         if debug:
             console.print(f"  [dim]Banquet skipped: {e}[/dim]")
         return rough_stem
@@ -390,7 +390,7 @@ def _best_query_window(data, sr: int, win_s: float = 10.0) -> tuple[int, int]:
     if len(mono) <= win:
         return 0, len(mono)
 
-    # Stride at 1s — cheap, plenty fine
+    # Stride at 1s: cheap, plenty fine
     hop = sr
     rms_scores = []
     for start in range(0, len(mono) - win + 1, hop):

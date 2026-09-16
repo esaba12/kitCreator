@@ -1,0 +1,220 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Demo — kitCreator</title>
+<meta name="description" content="A real kitCreator render, playable in your browser: the same song separated, extracted, clustered, and exported to a real SFZ kit you can trigger live." />
+<link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><rect width=%22100%22 height=%22100%22 rx=%2216%22 fill=%22%2317140f%22/><rect x=%2224%22 y=%2224%22 width=%2222%22 height=%2222%22 rx=%224%22 fill=%22%23f2efe7%22/><rect x=%2224%22 y=%2224%22 width=%229%22 height=%229%22 rx=%222%22 fill=%22%23ff5a1f%22/></svg>" />
+<link rel="stylesheet" href="/shared.css" />
+<style>
+  .demo-hero { padding: 64px 28px 40px; border-bottom: 1.5px solid var(--line); }
+  .demo-hero h1 { font-size: clamp(30px, 5vw, 48px); line-height: 1.05; text-transform: uppercase; }
+  .demo-hero p.lede { max-width: 640px; margin-top: 16px; color: var(--ink-dim); font-size: 14px; line-height: 1.75; }
+  .credit-line { margin-top: 20px; font-size: 12px; color: var(--ink-faint); }
+  .credit-line b { color: var(--ink-dim); }
+  .credit-line a { text-decoration: underline; }
+
+  .stage-header { display: flex; align-items: baseline; gap: 14px; margin-bottom: 26px; }
+  .stage-header .stage-tag {
+    font-family: "Archivo", sans-serif; font-weight: 800; font-size: 13px;
+    letter-spacing: 0.08em; padding: 5px 10px; border-radius: 4px;
+    background: var(--ink); color: var(--chassis-raised);
+  }
+  .stage-header h2 { font-size: 24px; text-transform: uppercase; }
+
+  /* stage 1: waveforms */
+  .wave-row { display: flex; align-items: center; gap: 16px; padding: 14px 0; border-top: 1.5px solid var(--line); }
+  .wave-row:first-child { border-top: none; }
+  .wave-row .wave-play { flex: none; }
+  .wave-row .wave-play .face { min-width: 44px; padding: 12px 14px; }
+  .wave-meta { flex: none; width: 130px; font-size: 12px; text-transform: uppercase; letter-spacing: 0.05em; color: var(--ink-dim); }
+  .wave-container { flex: 1; min-width: 0; }
+
+  /* stage 2: extraction */
+  .extract-layout { display: grid; grid-template-columns: repeat(5, 1fr); gap: 14px; margin-bottom: 34px; }
+  @media (max-width: 780px) { .extract-layout { grid-template-columns: repeat(3, 1fr); } }
+  .extract-col-label { font-size: 11px; text-transform: uppercase; letter-spacing: 0.08em; color: var(--ink-dim); margin-bottom: 10px; text-align: center; }
+  .tile-stack { display: flex; flex-direction: column; gap: 5px; }
+  .sample-tile {
+    border: 1.5px solid var(--line-strong); background: var(--chassis-raised);
+    border-radius: 4px; padding: 7px 6px; cursor: pointer;
+    display: flex; justify-content: space-between; font-size: 10px; color: var(--ink-dim);
+    font-family: "IBM Plex Mono", monospace;
+  }
+  .sample-tile:hover { border-color: var(--orange); color: var(--ink); }
+  .sample-tile:active { background: var(--orange); color: var(--orange-ink); border-color: var(--orange-ink); }
+
+  #bass-strip { display: flex; flex-wrap: wrap; gap: 5px; }
+  .sample-tile-bass { min-width: 46px; justify-content: center; }
+  .sample-tile-bass:hover { border-color: var(--teal); }
+  .sample-tile-bass:active { background: var(--teal); color: var(--teal-ink); border-color: var(--teal-ink); }
+
+  /* stage 3: timbre */
+  #timbre-stats { display: grid; grid-template-columns: repeat(4, 1fr); gap: 14px; }
+  #timbre-stats div {
+    border: 1.5px solid var(--ink); border-radius: var(--radius); padding: 18px 16px;
+    background: var(--chassis-raised); box-shadow: var(--shadow-offset) var(--shadow-offset) 0 0 var(--ink);
+  }
+  #timbre-stats b { display: block; font-family: "Archivo", sans-serif; font-size: 30px; font-weight: 800; }
+  #timbre-stats span { font-size: 10.5px; text-transform: uppercase; letter-spacing: 0.06em; color: var(--ink-dim); }
+
+  /* stage 4: playable export */
+  .export-panel { display: grid; grid-template-columns: 1fr 1fr; gap: 40px; align-items: start; }
+  @media (max-width: 860px) { .export-panel { grid-template-columns: 1fr; } }
+  .export-block h3 { font-size: 14px; text-transform: uppercase; letter-spacing: 0.06em; margin-bottom: 16px; color: var(--ink-dim); }
+
+  #pad-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; }
+  .pad {
+    aspect-ratio: 1.15;
+    border: 2px solid var(--orange-ink);
+    background: var(--orange);
+    border-radius: 10px;
+    box-shadow: var(--shadow-offset) var(--shadow-offset) 0 0 var(--orange-ink);
+    cursor: pointer;
+    display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 6px;
+    transition: transform 0.06s ease, box-shadow 0.06s ease;
+    touch-action: none;
+    user-select: none;
+  }
+  .pad:active, .pad.is-pressed { transform: translate(var(--shadow-offset), var(--shadow-offset)); box-shadow: none; }
+  .pad-face { display: flex; flex-direction: column; align-items: center; gap: 4px; }
+  .pad-name { font-family: "Archivo", sans-serif; font-weight: 800; font-size: 13px; text-transform: uppercase; color: var(--orange-ink); }
+  .pad-key { font-size: 10px; color: var(--orange-ink); opacity: 0.65; border: 1.5px solid var(--orange-ink); border-radius: 3px; padding: 1px 6px; }
+  .pad-hint { font-size: 8.5px; color: var(--orange-ink); opacity: 0.55; text-align: center; padding: 0 8px; }
+
+  #bass-keyboard { display: flex; height: 130px; border: 2px solid var(--teal-ink); border-radius: 8px; overflow: hidden; box-shadow: var(--shadow-offset) var(--shadow-offset) 0 0 var(--teal-ink); }
+  .bkey { flex: 1; border: none; border-right: 1.5px solid var(--teal-ink); background: var(--chassis-raised); cursor: pointer; position: relative; }
+  .bkey:last-child { border-right: none; }
+  .bkey-black { background: var(--ink); flex: 0.7; margin: 0 -0.35%; z-index: 2; border-radius: 0 0 4px 4px; }
+  .bkey-recorded::after {
+    content: ""; position: absolute; bottom: 10px; left: 50%; transform: translateX(-50%);
+    width: 6px; height: 6px; border-radius: 50%; background: var(--teal);
+  }
+  .bkey-black.bkey-recorded::after { background: var(--orange); }
+  .bkey.is-pressed, .bkey:active { background: var(--teal); }
+  .bkey-black.is-pressed, .bkey-black:active { background: var(--teal-ink); }
+  .keyboard-legend { margin-top: 12px; font-size: 10.5px; color: var(--ink-faint); display: flex; align-items: center; gap: 8px; }
+  .keyboard-legend .dot { width: 6px; height: 6px; border-radius: 50%; background: var(--teal); display: inline-block; }
+
+  .download-row { margin-top: 20px; display: flex; gap: 14px; flex-wrap: wrap; }
+  .download-row .k-btn .face { font-size: 12px; padding: 10px 16px; min-width: unset; }
+
+  #sfz-readout { margin-bottom: 26px; }
+</style>
+</head>
+<body>
+
+  <nav class="k-nav">
+    <div class="k-wrap">
+      <a class="k-logo" href="/"><span class="chip"></span>KITCREATOR</a>
+      <div class="k-links">
+        <a class="k-link is-active" href="/demo/">Demo</a>
+        <a class="k-link" href="/how-it-works/">How it works</a>
+        <a class="k-link k-link-accent" href="https://github.com/esaba12/kitCreator" target="_blank" rel="noopener">GitHub</a>
+      </div>
+    </div>
+  </nav>
+
+  <section class="demo-hero">
+    <div class="k-wrap">
+      <div class="k-kicker">Live signal path</div>
+      <h1>This is a real render. Not a mockup.</h1>
+      <p class="lede">
+        Every waveform, sample, and instrument below came out of an actual run of the
+        kitforge CLI — no server, no live processing, just the real output files played
+        back in your browser. The last stage even parses the real generated
+        <code>kit.sfz</code> on the fly to build the playable instrument.
+      </p>
+      <p class="credit-line">
+        Rendered from <b id="song-title"></b> by <b id="song-artist"></b> —
+        <a id="song-source" target="_blank" rel="noopener"><span id="song-license"></span></a>, a 25-second excerpt.
+      </p>
+    </div>
+  </section>
+
+  <section class="k-section">
+    <div class="k-wrap">
+      <div class="stage-header"><span class="stage-tag">01</span><h2>Separation</h2></div>
+      <div class="wave-row">
+        <button class="k-btn wave-play"><span class="face">▶</span></button>
+        <div class="wave-meta">Original mix</div>
+        <div class="wave-container"><div id="wave-original"></div></div>
+      </div>
+      <div class="wave-row">
+        <button class="k-btn k-btn-orange wave-play"><span class="face">▶</span></button>
+        <div class="wave-meta">Isolated drums</div>
+        <div class="wave-container"><div id="wave-drums"></div></div>
+      </div>
+      <div class="wave-row">
+        <button class="k-btn k-btn-teal wave-play"><span class="face">▶</span></button>
+        <div class="wave-meta">Isolated bass</div>
+        <div class="wave-container"><div id="wave-bass"></div></div>
+      </div>
+    </div>
+  </section>
+
+  <section class="k-section">
+    <div class="k-wrap">
+      <div class="stage-header"><span class="stage-tag">02</span><h2>Extraction</h2></div>
+      <p style="color: var(--ink-dim); font-size: 13px; margin-top: -14px; margin-bottom: 26px; max-width: 640px;">
+        Every tile below is a real one-shot cut straight from the isolated stem. Drums are
+        grouped by class, velocity layer (v0–v96), and round-robin (rr). Bass zones are
+        one recorded note each. Click any tile to hear the raw extracted sample.
+      </p>
+      <div class="extract-layout" id="drum-grid"></div>
+      <div class="extract-col-label" style="text-align: left;">Bass zones, low → high</div>
+      <div id="bass-strip"></div>
+    </div>
+  </section>
+
+  <section class="k-section">
+    <div class="k-wrap">
+      <div class="stage-header"><span class="stage-tag">03</span><h2>Timbre matching</h2></div>
+      <p style="color: var(--ink-dim); font-size: 13px; margin-top: -14px; margin-bottom: 26px; max-width: 640px;">
+        Every hit gets embedded with LAION-CLAP, then farthest-point sampled so the kit
+        keeps the most sonically distinct takes instead of near-duplicates. From this
+        25-second clip:
+      </p>
+      <div id="timbre-stats"></div>
+    </div>
+  </section>
+
+  <section class="k-section" style="border-bottom: none;">
+    <div class="k-wrap">
+      <div class="stage-header"><span class="stage-tag">04</span><h2>Export — play the real kit</h2></div>
+      <div class="k-readout" id="sfz-readout"><span class="bit"></span>PARSING kit.sfz…</div>
+
+      <div class="export-panel">
+        <div class="export-block">
+          <h3>Drum kit</h3>
+          <div id="pad-grid"></div>
+          <div class="download-row">
+            <a class="k-btn" href="/demo/assets/drums/kit.sfz" download><span class="face">kit.sfz</span></a>
+            <a class="k-btn" href="/demo/assets/drums/kit.dspreset" download><span class="face">kit.dspreset</span></a>
+          </div>
+        </div>
+        <div class="export-block">
+          <h3>Bass kit</h3>
+          <div id="bass-keyboard"></div>
+          <div class="keyboard-legend"><span class="dot"></span>dot = an actually recorded zone — everything else is pitch-interpolated live by the sampler engine, same as it would be in Sforzando or DecentSampler.</div>
+          <div class="download-row">
+            <a class="k-btn" href="/demo/assets/bass/kit.sfz" download><span class="face">kit.sfz</span></a>
+            <a class="k-btn" href="/demo/assets/bass/kit.dspreset" download><span class="face">kit.dspreset</span></a>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <footer class="k-footer">
+    <div class="k-wrap">
+      <span>Built by Ethan Saba</span>
+      <a href="https://github.com/esaba12/kitCreator" target="_blank" rel="noopener">github.com/esaba12/kitCreator</a>
+    </div>
+  </footer>
+
+<script src="https://unpkg.com/tone@14.7.39/build/Tone.js"></script>
+<script type="module" src="/demo/app.js"></script>
+</body>
+</html>

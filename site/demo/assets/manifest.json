@@ -1,0 +1,825 @@
+{
+  "song": {
+    "title": "Glad To Be Stuck Inside",
+    "artist": "HoliznaCC0",
+    "license": "CC0 1.0 Universal",
+    "source_url": "https://freemusicarchive.org/music/holiznacc0/lo-fi-and-chill/glad-to-be-stuck-insidemp3/",
+    "clip_start_seconds": 15,
+    "clip_duration_seconds": 25
+  },
+  "drums": {
+    "classes": [
+      "kick",
+      "snare",
+      "hihat",
+      "toms",
+      "cymbals"
+    ],
+    "sample_count": 77,
+    "samples": [
+      {
+        "file": "kick_v0_1.wav",
+        "class": "kick",
+        "midi": 36,
+        "vel_low": 0,
+        "vel_high": 31,
+        "rr": 1,
+        "rr_count": 3,
+        "choke_group": null
+      },
+      {
+        "file": "kick_v0_2.wav",
+        "class": "kick",
+        "midi": 36,
+        "vel_low": 0,
+        "vel_high": 31,
+        "rr": 2,
+        "rr_count": 3,
+        "choke_group": null
+      },
+      {
+        "file": "kick_v0_3.wav",
+        "class": "kick",
+        "midi": 36,
+        "vel_low": 0,
+        "vel_high": 31,
+        "rr": 3,
+        "rr_count": 3,
+        "choke_group": null
+      },
+      {
+        "file": "kick_v32_1.wav",
+        "class": "kick",
+        "midi": 36,
+        "vel_low": 32,
+        "vel_high": 63,
+        "rr": 1,
+        "rr_count": 3,
+        "choke_group": null
+      },
+      {
+        "file": "kick_v32_2.wav",
+        "class": "kick",
+        "midi": 36,
+        "vel_low": 32,
+        "vel_high": 63,
+        "rr": 2,
+        "rr_count": 3,
+        "choke_group": null
+      },
+      {
+        "file": "kick_v32_3.wav",
+        "class": "kick",
+        "midi": 36,
+        "vel_low": 32,
+        "vel_high": 63,
+        "rr": 3,
+        "rr_count": 3,
+        "choke_group": null
+      },
+      {
+        "file": "kick_v64_1.wav",
+        "class": "kick",
+        "midi": 36,
+        "vel_low": 64,
+        "vel_high": 95,
+        "rr": 1,
+        "rr_count": 3,
+        "choke_group": null
+      },
+      {
+        "file": "kick_v64_2.wav",
+        "class": "kick",
+        "midi": 36,
+        "vel_low": 64,
+        "vel_high": 95,
+        "rr": 2,
+        "rr_count": 3,
+        "choke_group": null
+      },
+      {
+        "file": "kick_v64_3.wav",
+        "class": "kick",
+        "midi": 36,
+        "vel_low": 64,
+        "vel_high": 95,
+        "rr": 3,
+        "rr_count": 3,
+        "choke_group": null
+      },
+      {
+        "file": "kick_v96_1.wav",
+        "class": "kick",
+        "midi": 36,
+        "vel_low": 96,
+        "vel_high": 127,
+        "rr": 1,
+        "rr_count": 4,
+        "choke_group": null
+      },
+      {
+        "file": "kick_v96_2.wav",
+        "class": "kick",
+        "midi": 36,
+        "vel_low": 96,
+        "vel_high": 127,
+        "rr": 2,
+        "rr_count": 4,
+        "choke_group": null
+      },
+      {
+        "file": "kick_v96_3.wav",
+        "class": "kick",
+        "midi": 36,
+        "vel_low": 96,
+        "vel_high": 127,
+        "rr": 3,
+        "rr_count": 4,
+        "choke_group": null
+      },
+      {
+        "file": "kick_v96_4.wav",
+        "class": "kick",
+        "midi": 36,
+        "vel_low": 96,
+        "vel_high": 127,
+        "rr": 4,
+        "rr_count": 4,
+        "choke_group": null
+      },
+      {
+        "file": "snare_v0_1.wav",
+        "class": "snare",
+        "midi": 38,
+        "vel_low": 0,
+        "vel_high": 31,
+        "rr": 1,
+        "rr_count": 4,
+        "choke_group": null
+      },
+      {
+        "file": "snare_v0_2.wav",
+        "class": "snare",
+        "midi": 38,
+        "vel_low": 0,
+        "vel_high": 31,
+        "rr": 2,
+        "rr_count": 4,
+        "choke_group": null
+      },
+      {
+        "file": "snare_v0_3.wav",
+        "class": "snare",
+        "midi": 38,
+        "vel_low": 0,
+        "vel_high": 31,
+        "rr": 3,
+        "rr_count": 4,
+        "choke_group": null
+      },
+      {
+        "file": "snare_v0_4.wav",
+        "class": "snare",
+        "midi": 38,
+        "vel_low": 0,
+        "vel_high": 31,
+        "rr": 4,
+        "rr_count": 4,
+        "choke_group": null
+      },
+      {
+        "file": "snare_v32_1.wav",
+        "class": "snare",
+        "midi": 38,
+        "vel_low": 32,
+        "vel_high": 63,
+        "rr": 1,
+        "rr_count": 4,
+        "choke_group": null
+      },
+      {
+        "file": "snare_v32_2.wav",
+        "class": "snare",
+        "midi": 38,
+        "vel_low": 32,
+        "vel_high": 63,
+        "rr": 2,
+        "rr_count": 4,
+        "choke_group": null
+      },
+      {
+        "file": "snare_v32_3.wav",
+        "class": "snare",
+        "midi": 38,
+        "vel_low": 32,
+        "vel_high": 63,
+        "rr": 3,
+        "rr_count": 4,
+        "choke_group": null
+      },
+      {
+        "file": "snare_v32_4.wav",
+        "class": "snare",
+        "midi": 38,
+        "vel_low": 32,
+        "vel_high": 63,
+        "rr": 4,
+        "rr_count": 4,
+        "choke_group": null
+      },
+      {
+        "file": "snare_v64_1.wav",
+        "class": "snare",
+        "midi": 38,
+        "vel_low": 64,
+        "vel_high": 95,
+        "rr": 1,
+        "rr_count": 4,
+        "choke_group": null
+      },
+      {
+        "file": "snare_v64_2.wav",
+        "class": "snare",
+        "midi": 38,
+        "vel_low": 64,
+        "vel_high": 95,
+        "rr": 2,
+        "rr_count": 4,
+        "choke_group": null
+      },
+      {
+        "file": "snare_v64_3.wav",
+        "class": "snare",
+        "midi": 38,
+        "vel_low": 64,
+        "vel_high": 95,
+        "rr": 3,
+        "rr_count": 4,
+        "choke_group": null
+      },
+      {
+        "file": "snare_v64_4.wav",
+        "class": "snare",
+        "midi": 38,
+        "vel_low": 64,
+        "vel_high": 95,
+        "rr": 4,
+        "rr_count": 4,
+        "choke_group": null
+      },
+      {
+        "file": "snare_v96_1.wav",
+        "class": "snare",
+        "midi": 38,
+        "vel_low": 96,
+        "vel_high": 127,
+        "rr": 1,
+        "rr_count": 4,
+        "choke_group": null
+      },
+      {
+        "file": "snare_v96_2.wav",
+        "class": "snare",
+        "midi": 38,
+        "vel_low": 96,
+        "vel_high": 127,
+        "rr": 2,
+        "rr_count": 4,
+        "choke_group": null
+      },
+      {
+        "file": "snare_v96_3.wav",
+        "class": "snare",
+        "midi": 38,
+        "vel_low": 96,
+        "vel_high": 127,
+        "rr": 3,
+        "rr_count": 4,
+        "choke_group": null
+      },
+      {
+        "file": "snare_v96_4.wav",
+        "class": "snare",
+        "midi": 38,
+        "vel_low": 96,
+        "vel_high": 127,
+        "rr": 4,
+        "rr_count": 4,
+        "choke_group": null
+      },
+      {
+        "file": "toms_v0_1.wav",
+        "class": "toms",
+        "midi": 47,
+        "vel_low": 0,
+        "vel_high": 31,
+        "rr": 1,
+        "rr_count": 4,
+        "choke_group": null
+      },
+      {
+        "file": "toms_v0_2.wav",
+        "class": "toms",
+        "midi": 47,
+        "vel_low": 0,
+        "vel_high": 31,
+        "rr": 2,
+        "rr_count": 4,
+        "choke_group": null
+      },
+      {
+        "file": "toms_v0_3.wav",
+        "class": "toms",
+        "midi": 47,
+        "vel_low": 0,
+        "vel_high": 31,
+        "rr": 3,
+        "rr_count": 4,
+        "choke_group": null
+      },
+      {
+        "file": "toms_v0_4.wav",
+        "class": "toms",
+        "midi": 47,
+        "vel_low": 0,
+        "vel_high": 31,
+        "rr": 4,
+        "rr_count": 4,
+        "choke_group": null
+      },
+      {
+        "file": "toms_v32_1.wav",
+        "class": "toms",
+        "midi": 47,
+        "vel_low": 32,
+        "vel_high": 63,
+        "rr": 1,
+        "rr_count": 4,
+        "choke_group": null
+      },
+      {
+        "file": "toms_v32_2.wav",
+        "class": "toms",
+        "midi": 47,
+        "vel_low": 32,
+        "vel_high": 63,
+        "rr": 2,
+        "rr_count": 4,
+        "choke_group": null
+      },
+      {
+        "file": "toms_v32_3.wav",
+        "class": "toms",
+        "midi": 47,
+        "vel_low": 32,
+        "vel_high": 63,
+        "rr": 3,
+        "rr_count": 4,
+        "choke_group": null
+      },
+      {
+        "file": "toms_v32_4.wav",
+        "class": "toms",
+        "midi": 47,
+        "vel_low": 32,
+        "vel_high": 63,
+        "rr": 4,
+        "rr_count": 4,
+        "choke_group": null
+      },
+      {
+        "file": "toms_v64_1.wav",
+        "class": "toms",
+        "midi": 47,
+        "vel_low": 64,
+        "vel_high": 95,
+        "rr": 1,
+        "rr_count": 4,
+        "choke_group": null
+      },
+      {
+        "file": "toms_v64_2.wav",
+        "class": "toms",
+        "midi": 47,
+        "vel_low": 64,
+        "vel_high": 95,
+        "rr": 2,
+        "rr_count": 4,
+        "choke_group": null
+      },
+      {
+        "file": "toms_v64_3.wav",
+        "class": "toms",
+        "midi": 47,
+        "vel_low": 64,
+        "vel_high": 95,
+        "rr": 3,
+        "rr_count": 4,
+        "choke_group": null
+      },
+      {
+        "file": "toms_v64_4.wav",
+        "class": "toms",
+        "midi": 47,
+        "vel_low": 64,
+        "vel_high": 95,
+        "rr": 4,
+        "rr_count": 4,
+        "choke_group": null
+      },
+      {
+        "file": "toms_v96_1.wav",
+        "class": "toms",
+        "midi": 47,
+        "vel_low": 96,
+        "vel_high": 127,
+        "rr": 1,
+        "rr_count": 4,
+        "choke_group": null
+      },
+      {
+        "file": "toms_v96_2.wav",
+        "class": "toms",
+        "midi": 47,
+        "vel_low": 96,
+        "vel_high": 127,
+        "rr": 2,
+        "rr_count": 4,
+        "choke_group": null
+      },
+      {
+        "file": "toms_v96_3.wav",
+        "class": "toms",
+        "midi": 47,
+        "vel_low": 96,
+        "vel_high": 127,
+        "rr": 3,
+        "rr_count": 4,
+        "choke_group": null
+      },
+      {
+        "file": "toms_v96_4.wav",
+        "class": "toms",
+        "midi": 47,
+        "vel_low": 96,
+        "vel_high": 127,
+        "rr": 4,
+        "rr_count": 4,
+        "choke_group": null
+      },
+      {
+        "file": "hihat_v0_1.wav",
+        "class": "hihat",
+        "midi": 42,
+        "vel_low": 0,
+        "vel_high": 31,
+        "rr": 1,
+        "rr_count": 4,
+        "choke_group": "1"
+      },
+      {
+        "file": "hihat_v0_2.wav",
+        "class": "hihat",
+        "midi": 42,
+        "vel_low": 0,
+        "vel_high": 31,
+        "rr": 2,
+        "rr_count": 4,
+        "choke_group": "1"
+      },
+      {
+        "file": "hihat_v0_3.wav",
+        "class": "hihat",
+        "midi": 42,
+        "vel_low": 0,
+        "vel_high": 31,
+        "rr": 3,
+        "rr_count": 4,
+        "choke_group": "1"
+      },
+      {
+        "file": "hihat_v0_4.wav",
+        "class": "hihat",
+        "midi": 42,
+        "vel_low": 0,
+        "vel_high": 31,
+        "rr": 4,
+        "rr_count": 4,
+        "choke_group": "1"
+      },
+      {
+        "file": "hihat_v32_1.wav",
+        "class": "hihat",
+        "midi": 42,
+        "vel_low": 32,
+        "vel_high": 63,
+        "rr": 1,
+        "rr_count": 4,
+        "choke_group": "1"
+      },
+      {
+        "file": "hihat_v32_2.wav",
+        "class": "hihat",
+        "midi": 42,
+        "vel_low": 32,
+        "vel_high": 63,
+        "rr": 2,
+        "rr_count": 4,
+        "choke_group": "1"
+      },
+      {
+        "file": "hihat_v32_3.wav",
+        "class": "hihat",
+        "midi": 42,
+        "vel_low": 32,
+        "vel_high": 63,
+        "rr": 3,
+        "rr_count": 4,
+        "choke_group": "1"
+      },
+      {
+        "file": "hihat_v32_4.wav",
+        "class": "hihat",
+        "midi": 42,
+        "vel_low": 32,
+        "vel_high": 63,
+        "rr": 4,
+        "rr_count": 4,
+        "choke_group": "1"
+      },
+      {
+        "file": "hihat_v64_1.wav",
+        "class": "hihat",
+        "midi": 42,
+        "vel_low": 64,
+        "vel_high": 95,
+        "rr": 1,
+        "rr_count": 4,
+        "choke_group": "1"
+      },
+      {
+        "file": "hihat_v64_2.wav",
+        "class": "hihat",
+        "midi": 42,
+        "vel_low": 64,
+        "vel_high": 95,
+        "rr": 2,
+        "rr_count": 4,
+        "choke_group": "1"
+      },
+      {
+        "file": "hihat_v64_3.wav",
+        "class": "hihat",
+        "midi": 42,
+        "vel_low": 64,
+        "vel_high": 95,
+        "rr": 3,
+        "rr_count": 4,
+        "choke_group": "1"
+      },
+      {
+        "file": "hihat_v64_4.wav",
+        "class": "hihat",
+        "midi": 42,
+        "vel_low": 64,
+        "vel_high": 95,
+        "rr": 4,
+        "rr_count": 4,
+        "choke_group": "1"
+      },
+      {
+        "file": "hihat_v96_1.wav",
+        "class": "hihat",
+        "midi": 42,
+        "vel_low": 96,
+        "vel_high": 127,
+        "rr": 1,
+        "rr_count": 4,
+        "choke_group": "1"
+      },
+      {
+        "file": "hihat_v96_2.wav",
+        "class": "hihat",
+        "midi": 42,
+        "vel_low": 96,
+        "vel_high": 127,
+        "rr": 2,
+        "rr_count": 4,
+        "choke_group": "1"
+      },
+      {
+        "file": "hihat_v96_3.wav",
+        "class": "hihat",
+        "midi": 42,
+        "vel_low": 96,
+        "vel_high": 127,
+        "rr": 3,
+        "rr_count": 4,
+        "choke_group": "1"
+      },
+      {
+        "file": "hihat_v96_4.wav",
+        "class": "hihat",
+        "midi": 42,
+        "vel_low": 96,
+        "vel_high": 127,
+        "rr": 4,
+        "rr_count": 4,
+        "choke_group": "1"
+      },
+      {
+        "file": "cymbals_v0_1.wav",
+        "class": "cymbals",
+        "midi": 48,
+        "vel_low": 0,
+        "vel_high": 31,
+        "rr": 1,
+        "rr_count": 4,
+        "choke_group": null
+      },
+      {
+        "file": "cymbals_v0_2.wav",
+        "class": "cymbals",
+        "midi": 48,
+        "vel_low": 0,
+        "vel_high": 31,
+        "rr": 2,
+        "rr_count": 4,
+        "choke_group": null
+      },
+      {
+        "file": "cymbals_v0_3.wav",
+        "class": "cymbals",
+        "midi": 48,
+        "vel_low": 0,
+        "vel_high": 31,
+        "rr": 3,
+        "rr_count": 4,
+        "choke_group": null
+      },
+      {
+        "file": "cymbals_v0_4.wav",
+        "class": "cymbals",
+        "midi": 48,
+        "vel_low": 0,
+        "vel_high": 31,
+        "rr": 4,
+        "rr_count": 4,
+        "choke_group": null
+      },
+      {
+        "file": "cymbals_v32_1.wav",
+        "class": "cymbals",
+        "midi": 48,
+        "vel_low": 32,
+        "vel_high": 63,
+        "rr": 1,
+        "rr_count": 4,
+        "choke_group": null
+      },
+      {
+        "file": "cymbals_v32_2.wav",
+        "class": "cymbals",
+        "midi": 48,
+        "vel_low": 32,
+        "vel_high": 63,
+        "rr": 2,
+        "rr_count": 4,
+        "choke_group": null
+      },
+      {
+        "file": "cymbals_v32_3.wav",
+        "class": "cymbals",
+        "midi": 48,
+        "vel_low": 32,
+        "vel_high": 63,
+        "rr": 3,
+        "rr_count": 4,
+        "choke_group": null
+      },
+      {
+        "file": "cymbals_v32_4.wav",
+        "class": "cymbals",
+        "midi": 48,
+        "vel_low": 32,
+        "vel_high": 63,
+        "rr": 4,
+        "rr_count": 4,
+        "choke_group": null
+      },
+      {
+        "file": "cymbals_v64_1.wav",
+        "class": "cymbals",
+        "midi": 48,
+        "vel_low": 64,
+        "vel_high": 95,
+        "rr": 1,
+        "rr_count": 4,
+        "choke_group": null
+      },
+      {
+        "file": "cymbals_v64_2.wav",
+        "class": "cymbals",
+        "midi": 48,
+        "vel_low": 64,
+        "vel_high": 95,
+        "rr": 2,
+        "rr_count": 4,
+        "choke_group": null
+      },
+      {
+        "file": "cymbals_v64_3.wav",
+        "class": "cymbals",
+        "midi": 48,
+        "vel_low": 64,
+        "vel_high": 95,
+        "rr": 3,
+        "rr_count": 4,
+        "choke_group": null
+      },
+      {
+        "file": "cymbals_v64_4.wav",
+        "class": "cymbals",
+        "midi": 48,
+        "vel_low": 64,
+        "vel_high": 95,
+        "rr": 4,
+        "rr_count": 4,
+        "choke_group": null
+      },
+      {
+        "file": "cymbals_v96_1.wav",
+        "class": "cymbals",
+        "midi": 48,
+        "vel_low": 96,
+        "vel_high": 127,
+        "rr": 1,
+        "rr_count": 4,
+        "choke_group": null
+      },
+      {
+        "file": "cymbals_v96_2.wav",
+        "class": "cymbals",
+        "midi": 48,
+        "vel_low": 96,
+        "vel_high": 127,
+        "rr": 2,
+        "rr_count": 4,
+        "choke_group": null
+      },
+      {
+        "file": "cymbals_v96_3.wav",
+        "class": "cymbals",
+        "midi": 48,
+        "vel_low": 96,
+        "vel_high": 127,
+        "rr": 3,
+        "rr_count": 4,
+        "choke_group": null
+      },
+      {
+        "file": "cymbals_v96_4.wav",
+        "class": "cymbals",
+        "midi": 48,
+        "vel_low": 96,
+        "vel_high": 127,
+        "rr": 4,
+        "rr_count": 4,
+        "choke_group": null
+      }
+    ]
+  },
+  "bass": {
+    "sample_count": 4,
+    "range": {
+      "lo": 35,
+      "hi": 50
+    },
+    "samples": [
+      {
+        "file": "bass_B1_midi35.wav",
+        "midi": 35,
+        "lokey": 24,
+        "hikey": 37
+      },
+      {
+        "file": "bass_E2_midi40.wav",
+        "midi": 40,
+        "lokey": 38,
+        "hikey": 41
+      },
+      {
+        "file": "bass_G2_midi43.wav",
+        "midi": 43,
+        "lokey": 42,
+        "hikey": 46
+      },
+      {
+        "file": "bass_D3_midi50.wav",
+        "midi": 50,
+        "lokey": 47,
+        "hikey": 67
+      }
+    ]
+  }
+}

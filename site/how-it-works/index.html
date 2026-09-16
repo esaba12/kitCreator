@@ -1,0 +1,288 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>How it works — kitCreator</title>
+<meta name="description" content="How kitCreator turns a song into a playable sampler kit: source separation, transcription, timbre clustering, and SFZ/DecentSampler export — with credit to the open-source models it runs on." />
+<link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><rect width=%22100%22 height=%22100%22 rx=%2216%22 fill=%22%2317140f%22/><rect x=%2224%22 y=%2224%22 width=%2222%22 height=%2222%22 rx=%224%22 fill=%22%23f2efe7%22/><rect x=%2224%22 y=%2224%22 width=%229%22 height=%229%22 rx=%222%22 fill=%22%23ff5a1f%22/></svg>" />
+<link rel="stylesheet" href="/shared.css" />
+<style>
+  .hiw-hero { padding: 72px 28px 48px; border-bottom: 1.5px solid var(--line); }
+  .hiw-hero h1 { font-size: clamp(34px, 5.5vw, 54px); line-height: 1.05; text-transform: uppercase; }
+  .hiw-hero p.lede { max-width: 620px; margin-top: 20px; color: var(--ink-dim); font-size: 14.5px; line-height: 1.8; }
+
+  .stage-block {
+    display: grid;
+    grid-template-columns: 100px 1fr;
+    gap: 28px;
+    padding: 40px 0;
+    border-top: 1.5px solid var(--line);
+  }
+  .stage-block:first-of-type { border-top: none; }
+  .stage-num {
+    font-family: "Archivo", sans-serif;
+    font-weight: 800;
+    font-size: 42px;
+    color: var(--line-strong);
+    line-height: 1;
+  }
+  .stage-block h3 {
+    font-size: 20px;
+    text-transform: uppercase;
+    margin-bottom: 10px;
+  }
+  .stage-block p { color: var(--ink-dim); font-size: 13.5px; max-width: 640px; }
+  .stage-tools {
+    margin-top: 16px;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+  }
+  .tool-chip {
+    font-size: 11px;
+    letter-spacing: 0.04em;
+    padding: 6px 11px;
+    border: 1.5px solid var(--line-strong);
+    border-radius: var(--radius);
+    color: var(--ink);
+    background: var(--chassis-raised);
+    text-decoration: none;
+  }
+  .tool-chip:hover { border-color: var(--ink); }
+
+  table.credit-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 12.5px;
+    margin-top: 8px;
+  }
+  table.credit-table th {
+    text-align: left;
+    font-family: "IBM Plex Mono", monospace;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    font-size: 10.5px;
+    color: var(--ink-faint);
+    padding: 10px 14px;
+    border-bottom: 2px solid var(--ink);
+  }
+  table.credit-table td {
+    padding: 12px 14px;
+    border-bottom: 1.5px solid var(--line);
+    vertical-align: top;
+  }
+  table.credit-table td.stage-col { color: var(--ink-dim); white-space: nowrap; }
+  table.credit-table a { text-decoration: underline; text-decoration-color: var(--line-strong); }
+  table.credit-table a:hover { text-decoration-color: var(--ink); }
+  .license-tag {
+    font-size: 10px;
+    letter-spacing: 0.05em;
+    padding: 2px 7px;
+    border-radius: 4px;
+    background: var(--panel);
+    color: var(--ink-dim);
+    display: inline-block;
+    margin-top: 4px;
+  }
+
+  .credit-card {
+    background: var(--chassis-raised);
+    border: 2px solid var(--ink);
+    border-radius: var(--radius);
+    padding: 26px 28px;
+    box-shadow: var(--shadow-offset) var(--shadow-offset) 0 0 var(--ink);
+  }
+  .credit-card p { font-size: 13.5px; color: var(--ink-dim); margin: 6px 0; }
+  .credit-card .track-title { font-family: "Archivo", sans-serif; font-weight: 700; font-size: 16px; color: var(--ink); }
+
+  .cta-row { margin-top: 32px; display: flex; gap: 22px; flex-wrap: wrap; align-items: center; }
+</style>
+</head>
+<body>
+
+  <nav class="k-nav">
+    <div class="k-wrap">
+      <a class="k-logo" href="/"><span class="chip"></span>KITCREATOR</a>
+      <div class="k-links">
+        <a class="k-link" href="/demo/">Demo</a>
+        <a class="k-link is-active" href="/how-it-works/">How it works</a>
+        <a class="k-link k-link-accent" href="https://github.com/esaba12/kitCreator" target="_blank" rel="noopener">GitHub</a>
+      </div>
+    </div>
+  </nav>
+
+  <section class="hiw-hero">
+    <div class="k-wrap">
+      <div class="k-kicker">Documentation</div>
+      <h1>How a song becomes a kit.</h1>
+      <p class="lede">
+        kitCreator runs four real stages on your audio: it separates the mix into
+        instruments, figures out every note that was played, groups similar-sounding
+        hits together, and packages the result as a standard sampler instrument. Every
+        stage below is backed by a named, open-source model — nothing here is a black box.
+      </p>
+    </div>
+  </section>
+
+  <section class="k-section">
+    <div class="k-wrap">
+
+      <div class="stage-block">
+        <div class="stage-num">01</div>
+        <div>
+          <h3>Separation</h3>
+          <p>
+            The full mix goes into a source-separation network that isolates drums,
+            bass, vocals, and "other" into individual stems. For pitched instruments,
+            a second pass strips residual vocal bleed first, since guitar/piano/synth
+            content usually lives in Demucs's noisier "other" stem.
+          </p>
+          <div class="stage-tools">
+            <a class="tool-chip" href="https://github.com/facebookresearch/demucs" target="_blank" rel="noopener">Demucs — Meta AI Research</a>
+            <a class="tool-chip" href="https://github.com/nomadkaraoke/python-audio-separator" target="_blank" rel="noopener">BS-RoFormer</a>
+          </div>
+        </div>
+      </div>
+
+      <div class="stage-block">
+        <div class="stage-num">02</div>
+        <div>
+          <h3>Extraction</h3>
+          <p>
+            For drums: onset detection finds every individual hit in the isolated stem,
+            sorts them by energy into velocity layers, and slices clean one-shots. For
+            pitched instruments: a transcription model finds every note actually played,
+            and each detected pitch becomes its own sampled zone.
+          </p>
+          <div class="stage-tools">
+            <a class="tool-chip" href="https://github.com/spotify/basic-pitch" target="_blank" rel="noopener">Basic Pitch — Spotify</a>
+            <a class="tool-chip" href="https://github.com/maxrmorrison/torchcrepe" target="_blank" rel="noopener">CREPE (torchcrepe)</a>
+            <a class="tool-chip" href="https://librosa.org/" target="_blank" rel="noopener">librosa onset detection</a>
+          </div>
+        </div>
+      </div>
+
+      <div class="stage-block">
+        <div class="stage-num">03</div>
+        <div>
+          <h3>Timbre matching</h3>
+          <p>
+            Every extracted hit is embedded into a shared timbre space, then clustered
+            so the kit keeps only the most sonically distinct 2–4 round-robins per
+            velocity layer — via farthest-point sampling — instead of dozens of
+            near-identical takes of the same drum hit.
+          </p>
+          <div class="stage-tools">
+            <a class="tool-chip" href="https://github.com/LAION-AI/CLAP" target="_blank" rel="noopener">LAION-CLAP</a>
+            <a class="tool-chip" href="https://github.com/scikit-learn-contrib/hdbscan" target="_blank" rel="noopener">HDBSCAN</a>
+          </div>
+        </div>
+      </div>
+
+      <div class="stage-block">
+        <div class="stage-num">04</div>
+        <div>
+          <h3>Export</h3>
+          <p>
+            Attack/decay/sustain/release and loop points are estimated per sample, then
+            the whole kit is written out twice — once as an SFZ file, once as a
+            DecentSampler preset — so it loads in essentially any free or paid sampler,
+            no plugin required.
+          </p>
+          <div class="stage-tools">
+            <span class="tool-chip">SFZ format</span>
+            <a class="tool-chip" href="https://www.decentsamples.com/product/decentsampler-plugin/" target="_blank" rel="noopener">DecentSampler</a>
+            <a class="tool-chip" href="https://breakfastquay.com/rubberband/" target="_blank" rel="noopener">Rubber Band</a>
+            <a class="tool-chip" href="https://github.com/Rikorose/DeepFilterNet" target="_blank" rel="noopener">DeepFilterNet</a>
+          </div>
+        </div>
+      </div>
+
+    </div>
+  </section>
+
+  <section class="k-section">
+    <div class="k-wrap">
+      <div class="k-kicker">Model credits</div>
+      <h2 style="font-size: 26px; text-transform: uppercase; margin-bottom: 18px;">Open-source, all the way down</h2>
+      <table class="credit-table">
+        <thead>
+          <tr><th>Stage</th><th>Model</th><th>License</th></tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td class="stage-col">Separation</td>
+            <td><a href="https://github.com/facebookresearch/demucs" target="_blank" rel="noopener">Demucs (htdemucs_ft / htdemucs_6s)</a> — Meta AI Research</td>
+            <td><span class="license-tag">MIT</span></td>
+          </tr>
+          <tr>
+            <td class="stage-col">Separation (high quality)</td>
+            <td><a href="https://github.com/nomadkaraoke/python-audio-separator" target="_blank" rel="noopener">BS-RoFormer</a> via python-audio-separator</td>
+            <td><span class="license-tag">MIT</span></td>
+          </tr>
+          <tr>
+            <td class="stage-col">Transcription</td>
+            <td><a href="https://github.com/spotify/basic-pitch" target="_blank" rel="noopener">Basic Pitch</a> — Spotify Audio Intelligence Lab</td>
+            <td><span class="license-tag">Apache 2.0</span></td>
+          </tr>
+          <tr>
+            <td class="stage-col">Transcription (bass)</td>
+            <td><a href="https://github.com/maxrmorrison/torchcrepe" target="_blank" rel="noopener">CREPE</a> (torchcrepe port)</td>
+            <td><span class="license-tag">MIT</span></td>
+          </tr>
+          <tr>
+            <td class="stage-col">Timbre embeddings</td>
+            <td><a href="https://github.com/LAION-AI/CLAP" target="_blank" rel="noopener">LAION-CLAP</a></td>
+            <td><span class="license-tag">CC0 / MIT</span></td>
+          </tr>
+          <tr>
+            <td class="stage-col">Clustering</td>
+            <td><a href="https://github.com/scikit-learn-contrib/hdbscan" target="_blank" rel="noopener">HDBSCAN</a></td>
+            <td><span class="license-tag">BSD-3</span></td>
+          </tr>
+          <tr>
+            <td class="stage-col">Pitch shifting</td>
+            <td><a href="https://breakfastquay.com/rubberband/" target="_blank" rel="noopener">Rubber Band</a> (pyrubberband)</td>
+            <td><span class="license-tag">GPLv2</span></td>
+          </tr>
+          <tr>
+            <td class="stage-col">Denoising (high quality)</td>
+            <td><a href="https://github.com/Rikorose/DeepFilterNet" target="_blank" rel="noopener">DeepFilterNet</a></td>
+            <td><span class="license-tag">MIT</span></td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <section class="k-section" style="border-bottom: none;">
+    <div class="k-wrap">
+      <div class="k-kicker">Demo track credit</div>
+      <div class="credit-card">
+        <div class="track-title">"Glad To Be Stuck Inside"</div>
+        <p>by HoliznaCC0 — dedicated to the public domain under CC0 1.0 Universal.</p>
+        <p>Source: <a href="https://freemusicarchive.org/music/holiznacc0/lo-fi-and-chill/glad-to-be-stuck-insidemp3/" target="_blank" rel="noopener">Free Music Archive</a>, album <em>Lo-fi And Chill</em>. A 25-second excerpt was used to render the kits shown in the demo.</p>
+      </div>
+      <div class="cta-row">
+        <a class="k-btn k-btn-orange" href="/demo/">
+          <span class="face">Try the demo</span>
+          <span class="label">Real pipeline output</span>
+        </a>
+        <a class="k-btn" href="https://github.com/esaba12/kitCreator" target="_blank" rel="noopener">
+          <span class="face">View source</span>
+          <span class="label">github.com/esaba12/kitCreator</span>
+        </a>
+      </div>
+    </div>
+  </section>
+
+  <footer class="k-footer">
+    <div class="k-wrap">
+      <span>Built by Ethan Saba</span>
+      <span>kitCreator — local-first sampler kit generation</span>
+    </div>
+  </footer>
+
+</body>
+</html>

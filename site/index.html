@@ -1,0 +1,485 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>kitCreator — song to sampler kit</title>
+<meta name="description" content="kitCreator turns any song into a playable, multi-octave sampler kit. Source separation, transcription, and CLAP-driven sample selection, exported as SFZ + DecentSampler." />
+<link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><rect width=%22100%22 height=%22100%22 fill=%22%230b0c0d%22/><rect x=%2222%22 y=%2260%22 width=%2210%22 height=%2225%22 fill=%22%23ff7a1a%22/><rect x=%2238%22 y=%2240%22 width=%2210%22 height=%2245%22 fill=%22%23ff7a1a%22/><rect x=%2254%22 y=%2225%22 width=%2210%22 height=%2260%22 fill=%22%23ff7a1a%22/><rect x=%2270%22 y=%2250%22 width=%2210%22 height=%2235%22 fill=%22%23ff7a1a%22/></svg>" />
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Chakra+Petch:wght@500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet" />
+<style>
+  :root {
+    --bg: #0b0c0d;
+    --bg-panel: #131416;
+    --bg-panel-raised: #17191c;
+    --line: #2a2c30;
+    --line-soft: #1e2023;
+    --amber: #ff7a1a;
+    --amber-dim: #7a3d12;
+    --green: #4be07a;
+    --text: #e8e6e1;
+    --text-dim: #8a8d92;
+    --text-faint: #55585d;
+  }
+
+  * { box-sizing: border-box; }
+
+  html, body {
+    margin: 0;
+    padding: 0;
+    background: var(--bg);
+    color: var(--text);
+    font-family: "JetBrains Mono", monospace;
+    overflow-x: hidden;
+  }
+
+  body {
+    background-image:
+      radial-gradient(circle at 15% 10%, rgba(255,122,26,0.06), transparent 40%),
+      radial-gradient(circle at 85% 90%, rgba(75,224,122,0.04), transparent 45%),
+      repeating-linear-gradient(0deg, rgba(255,255,255,0.012) 0px, rgba(255,255,255,0.012) 1px, transparent 1px, transparent 3px);
+  }
+
+  .brushed {
+    background:
+      repeating-linear-gradient(100deg, rgba(255,255,255,0.015) 0px, rgba(255,255,255,0.015) 1px, transparent 1px, transparent 4px);
+  }
+
+  h1, h2, h3 {
+    font-family: "Chakra Petch", sans-serif;
+    margin: 0;
+  }
+
+  a { color: inherit; }
+
+  .wrap {
+    max-width: 1040px;
+    margin: 0 auto;
+    padding: 0 28px;
+  }
+
+  /* ---------- topbar ---------- */
+  .topbar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 22px 28px;
+    border-bottom: 1px solid var(--line-soft);
+  }
+  .topbar .wrap { display: flex; align-items: center; justify-content: space-between; width: 100%; padding: 0; }
+  .brandmark {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    font-family: "Chakra Petch", sans-serif;
+    font-weight: 700;
+    letter-spacing: 0.08em;
+    font-size: 15px;
+  }
+  .brandmark .dot {
+    width: 8px; height: 8px; border-radius: 50%;
+    background: var(--amber);
+    box-shadow: 0 0 8px 1px rgba(255,122,26,0.7);
+    animation: blink 2.6s ease-in-out infinite;
+  }
+  .topbar .status {
+    font-size: 11px;
+    color: var(--text-dim);
+    letter-spacing: 0.12em;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+  .nav-links {
+    display: flex;
+    align-items: center;
+    gap: 22px;
+  }
+  .nav-links a {
+    font-size: 12px;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--text-dim);
+    text-decoration: none;
+    transition: color 0.15s ease;
+  }
+  .nav-links a:hover { color: var(--text); }
+  .nav-links a.nav-accent {
+    color: var(--bg);
+    background: var(--amber);
+    padding: 8px 14px;
+    font-weight: 600;
+  }
+  .nav-links a.nav-accent:hover { color: var(--bg); opacity: 0.85; }
+  @media (max-width: 640px) {
+    .nav-links { gap: 12px; }
+    .nav-links a:not(.nav-accent) { display: none; }
+  }
+  .topbar .status .led {
+    width: 6px; height: 6px; border-radius: 50%;
+    background: var(--green);
+    box-shadow: 0 0 6px 1px rgba(75,224,122,0.8);
+    animation: blink 1.8s ease-in-out infinite;
+  }
+
+  @keyframes blink {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.25; }
+  }
+
+  /* ---------- hero ---------- */
+  .hero {
+    padding: 96px 28px 64px;
+    border-bottom: 1px solid var(--line-soft);
+    position: relative;
+  }
+  .hero .wrap { position: relative; z-index: 2; }
+
+  .kicker {
+    font-size: 12px;
+    letter-spacing: 0.22em;
+    color: var(--amber);
+    text-transform: uppercase;
+    margin-bottom: 22px;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+  }
+  .kicker::before {
+    content: "";
+    display: inline-block;
+    width: 26px; height: 1px;
+    background: var(--amber);
+  }
+
+  .hero h1 {
+    font-size: clamp(48px, 9vw, 96px);
+    line-height: 0.96;
+    letter-spacing: -0.01em;
+    text-transform: uppercase;
+    font-weight: 700;
+  }
+  .hero h1 .accent { color: var(--amber); }
+
+  .hero .tagline {
+    margin-top: 26px;
+    max-width: 620px;
+    font-size: 16px;
+    line-height: 1.65;
+    color: var(--text-dim);
+  }
+  .hero .tagline b { color: var(--text); font-weight: 500; }
+
+  .cta-row {
+    margin-top: 40px;
+    display: flex;
+    align-items: center;
+    gap: 20px;
+    flex-wrap: wrap;
+  }
+  .btn {
+    font-family: "JetBrains Mono", monospace;
+    font-size: 13px;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    padding: 14px 26px;
+    border: 1px solid var(--amber);
+    color: var(--bg);
+    background: var(--amber);
+    text-decoration: none;
+    font-weight: 600;
+    transition: all 0.15s ease;
+    display: inline-block;
+  }
+  .btn:hover { background: transparent; color: var(--amber); }
+
+  .btn-ghost {
+    font-family: "JetBrains Mono", monospace;
+    font-size: 13px;
+    letter-spacing: 0.04em;
+    color: var(--text-dim);
+    text-decoration: none;
+    border-bottom: 1px solid var(--line);
+    padding-bottom: 2px;
+    transition: color 0.15s ease, border-color 0.15s ease;
+  }
+  .btn-ghost:hover { color: var(--text); border-color: var(--text-dim); }
+
+  /* waveform */
+  .waveform {
+    margin-top: 56px;
+    height: 64px;
+    display: flex;
+    align-items: flex-end;
+    gap: 3px;
+  }
+  .waveform span {
+    flex: 1;
+    height: 100%;
+    transform-origin: bottom;
+    background: linear-gradient(180deg, var(--amber), var(--amber-dim));
+    opacity: 0.55;
+    animation: wave 2.2s ease-in-out infinite;
+    min-width: 2px;
+  }
+  @keyframes wave {
+    0%, 100% { transform: scaleY(0.3); }
+    50% { transform: scaleY(1); }
+  }
+
+  /* ---------- pipeline ---------- */
+  .pipeline {
+    padding: 72px 28px;
+    border-bottom: 1px solid var(--line-soft);
+  }
+  .section-label {
+    font-size: 11px;
+    letter-spacing: 0.2em;
+    text-transform: uppercase;
+    color: var(--text-faint);
+    margin-bottom: 34px;
+  }
+  .stages {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 1px;
+    background: var(--line-soft);
+    border: 1px solid var(--line-soft);
+  }
+  .stage {
+    background: var(--bg-panel);
+    padding: 26px 22px;
+    position: relative;
+    border-bottom: 2px solid transparent;
+    transition: background 0.2s ease, border-color 0.2s ease;
+  }
+  .stage:hover {
+    background: var(--bg-panel-raised);
+    border-bottom-color: var(--amber);
+  }
+  .stage .num {
+    font-size: 11px;
+    color: var(--amber);
+    letter-spacing: 0.1em;
+  }
+  .stage h3 {
+    margin-top: 14px;
+    font-size: 17px;
+    letter-spacing: 0.02em;
+  }
+  .stage p {
+    margin: 10px 0 0;
+    font-size: 12.5px;
+    line-height: 1.6;
+    color: var(--text-dim);
+  }
+  .stage .jack {
+    position: absolute;
+    top: 24px; right: 22px;
+    width: 10px; height: 10px;
+    border-radius: 50%;
+    border: 2px solid var(--line);
+    transition: border-color 0.2s ease, box-shadow 0.2s ease;
+  }
+  .stage:hover .jack {
+    border-color: var(--amber);
+    box-shadow: 0 0 0 3px rgba(255,122,26,0.15);
+  }
+
+  @media (max-width: 780px) {
+    .stages { grid-template-columns: repeat(2, 1fr); }
+  }
+  @media (max-width: 480px) {
+    .stages { grid-template-columns: 1fr; }
+  }
+
+  /* ---------- output panel ---------- */
+  .outputs {
+    padding: 72px 28px;
+    border-bottom: 1px solid var(--line-soft);
+  }
+  .output-grid {
+    display: grid;
+    grid-template-columns: 1.1fr 1fr;
+    gap: 48px;
+    align-items: start;
+  }
+  @media (max-width: 780px) {
+    .output-grid { grid-template-columns: 1fr; }
+  }
+  .output-grid h2 {
+    font-size: 28px;
+    text-transform: uppercase;
+    letter-spacing: 0.01em;
+  }
+  .output-grid .lede {
+    margin-top: 16px;
+    color: var(--text-dim);
+    font-size: 14px;
+    line-height: 1.7;
+    max-width: 460px;
+  }
+  .facts {
+    margin-top: 28px;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+  }
+  .facts div {
+    display: flex;
+    justify-content: space-between;
+    font-size: 12.5px;
+    padding: 10px 0;
+    border-bottom: 1px solid var(--line-soft);
+    color: var(--text-dim);
+  }
+  .facts div b { color: var(--text); font-weight: 500; }
+
+  .console {
+    background: var(--bg-panel-raised);
+    border: 1px solid var(--line);
+    padding: 22px 24px;
+    font-size: 12.5px;
+    line-height: 1.85;
+  }
+  .console .lbl { color: var(--text-faint); }
+  .console .amber { color: var(--amber); }
+  .console .green { color: var(--green); }
+  .blink-cursor { color: var(--amber); animation: blink 1s step-end infinite; }
+  .console .file { color: var(--text); }
+
+  /* ---------- footer ---------- */
+  footer {
+    padding: 40px 28px 56px;
+  }
+  footer .wrap {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 16px;
+  }
+  footer .meta {
+    font-size: 11.5px;
+    color: var(--text-faint);
+    letter-spacing: 0.05em;
+  }
+  footer .meta b { color: var(--text-dim); }
+</style>
+</head>
+<body>
+
+  <div class="topbar">
+    <div class="wrap">
+      <div class="brandmark"><span class="dot"></span>KITCREATOR</div>
+      <div class="nav-links">
+        <a href="/demo/">Demo</a>
+        <a href="/how-it-works/">How it works</a>
+        <a href="https://github.com/esaba12/kitCreator" target="_blank" rel="noopener">GitHub</a>
+        <a class="nav-accent" href="/demo/">Try the demo</a>
+      </div>
+    </div>
+  </div>
+
+  <section class="hero brushed">
+    <div class="wrap">
+      <div class="kicker">Song → Sampler Kit</div>
+      <h1>Any song<br />becomes a<br /><span class="accent">playable kit.</span></h1>
+      <p class="tagline">
+        kitCreator separates a track into its instruments, transcribes every note played,
+        and rebuilds it as a <b>multi-octave sampler instrument</b> — exported straight to
+        <b>SFZ</b> and <b>DecentSampler</b>, ready to load in any sampler or DAW.
+      </p>
+      <div class="cta-row">
+        <a class="btn" href="/demo/">Try the real demo →</a>
+        <a class="btn-ghost" href="/how-it-works/">See how it works ↓</a>
+      </div>
+      <div class="waveform" id="waveform" aria-hidden="true"></div>
+    </div>
+  </section>
+
+  <section class="pipeline" id="pipeline">
+    <div class="wrap">
+      <div class="section-label">Signal Path</div>
+      <div class="stages">
+        <div class="stage">
+          <div class="num">01</div>
+          <h3>Separation</h3>
+          <p>Demucs + BS-RoFormer isolate drums, bass, and pitched instruments from the full mix.</p>
+          <div class="jack"></div>
+        </div>
+        <div class="stage">
+          <div class="num">02</div>
+          <h3>Transcription</h3>
+          <p>Basic Pitch and CREPE extract every note, onset, and pitch played on each stem.</p>
+          <div class="jack"></div>
+        </div>
+        <div class="stage">
+          <div class="num">03</div>
+          <h3>Timbre Match</h3>
+          <p>CLAP embeddings cluster round-robins and fill gaps between recorded notes.</p>
+          <div class="jack"></div>
+        </div>
+        <div class="stage">
+          <div class="num">04</div>
+          <h3>Export</h3>
+          <p>ADSR + loop points are estimated, then packaged as SFZ and DecentSampler presets.</p>
+          <div class="jack"></div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section class="outputs">
+    <div class="wrap">
+      <div class="output-grid">
+        <div>
+          <h2>One song in. A full instrument out.</h2>
+          <p class="lede">
+            Point kitCreator at a track and an instrument — drums, bass, guitar, piano, or
+            synth — and get back a kit that spans the full keyboard, velocity-layered,
+            round-robined, and ready to trigger from any MIDI controller.
+          </p>
+          <div class="facts">
+            <div><span>Formats</span><b>SFZ · DecentSampler</b></div>
+            <div><span>Instruments</span><b>Drums · Bass · Guitar · Piano · Synth</b></div>
+            <div><span>Runs</span><b>Local CLI, no upload required</b></div>
+          </div>
+        </div>
+        <div class="console">
+          <div><span class="lbl">$</span> kitforge build --song track.wav <span class="amber">\</span></div>
+          <div>&nbsp;&nbsp;--instrument "lead synth" --range C2-C7</div>
+          <div>&nbsp;</div>
+          <div><span class="green">✓</span> separation &nbsp;<span class="lbl">htdemucs_ft</span></div>
+          <div><span class="green">✓</span> transcription &nbsp;<span class="lbl">basic_pitch</span></div>
+          <div><span class="green">✓</span> timbre cluster &nbsp;<span class="lbl">clap · hdbscan</span></div>
+          <div><span class="green">✓</span> export &nbsp;<span class="file">synth_kit/kit.sfz</span></div>
+          <div>&nbsp;</div>
+          <div><span class="lbl">$</span> <span class="blink-cursor">▍</span></div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <footer>
+    <div class="wrap">
+      <div class="meta">Built by <b>Ethan Saba</b></div>
+      <div class="meta"><a href="https://github.com/esaba12/kitCreator" target="_blank" rel="noopener" style="color: var(--text-dim); text-decoration: underline;">github.com/esaba12/kitCreator</a></div>
+    </div>
+  </footer>
+
+<script>
+  var wf = document.getElementById('waveform');
+  var bars = 64;
+  for (var i = 0; i < bars; i++) {
+    var s = document.createElement('span');
+    s.style.animationDelay = (Math.random() * 2).toFixed(2) + 's';
+    s.style.transform = 'scaleY(' + (0.15 + Math.random() * 0.5).toFixed(2) + ')';
+    wf.appendChild(s);
+  }
+</script>
+
+</body>
+</html>

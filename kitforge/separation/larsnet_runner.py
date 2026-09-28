@@ -7,6 +7,7 @@ from pathlib import Path
 import numpy as np
 import soundfile as sf
 import torch
+import torchaudio
 import yaml
 
 _LARSNET_DIR = Path.home() / ".cache" / "kitforge" / "larsnet"
@@ -74,7 +75,15 @@ def separate_drum_stem(drum_wav: Path, out_dir: Path) -> dict[str, Path]:
         device=device,
     )
 
-    stems = model(str(drum_wav))
+    # LarsNet's forward() calls torchaudio.load() on a str/Path, which defaults to
+    # the torchcodec backend; torchcodec ships decoders only for ffmpeg 4-8, so a
+    # newer Homebrew ffmpeg (9.x) breaks it (see docs/known-issues.md). Read via
+    # soundfile and hand LarsNet a tensor directly to skip that load path.
+    audio_np, file_sr = sf.read(str(drum_wav), dtype="float32", always_2d=True)
+    x = torch.from_numpy(audio_np.T).contiguous()  # (channels, samples)
+    if file_sr != model.sr:
+        x = torchaudio.functional.resample(x, file_sr, model.sr)
+    stems = model(x)
 
     out_dir.mkdir(parents=True, exist_ok=True)
     stem_paths: dict[str, Path] = {}

@@ -6,6 +6,7 @@
 - **torchaudio + torchcodec**: demucs stem writing uses soundfile directly to avoid MPS incompatibility with torchcodec's audio encoder
 - **LarsNet tqdm output**: LarsNet prints its own progress bars to stdout; these come from inside the library and can't be suppressed without patching
 - **CLAP model download (~600 MB)**: downloads from HuggingFace on the first kit build that needs CLAP clustering; subsequent runs use the cached weights
+- **CLAP load peaks at ~2.7 GB RSS**: measured in isolation, loading the model alone is fine on a machine with several GB free. On a real (multi-minute) song's drum build, `pick_diverse_rr` has enough onsets per velocity bucket to actually call CLAP (unlike short test clips, which fall under the `len(audios) <= n` fast path and skip it entirely) — combined with whatever else is running system-wide, this has triggered macOS's memory-pressure killer (SIGKILL/exit -9) even when a `vm_stat` check moments earlier showed multiple GB free. A free-page snapshot isn't a reliable predictor here; close other memory-heavy apps before a real-song drum build on a RAM-constrained machine
 - **deepfilternet 0.5.6 + torchaudio 2.x**: the package uses removed APIs; `denoise.py` patches them at import time. If deepfilternet releases a fix, the patch is safe to remove
 - **Banquet CPU runtime**: ~15–35 min/song on CPU; plan for an overnight run or use a CUDA GPU. Not needed for default quality
 - **BS-RoFormer adds ~3 min** to pitched-instrument runs at any quality. Stems are cached by content hash, so it only runs once per song
